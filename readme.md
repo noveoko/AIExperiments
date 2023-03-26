@@ -1,4 +1,4 @@
-![AI Ex Logo](ai_ex.png)
+![AI Ex Logo](/branding/aiexlogo.png)
 
 # AI Experiments
 
