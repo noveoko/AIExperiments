@@ -17,15 +17,20 @@ def read_mbox_chunk(mbox_path, chunk_size):
     if chunk:
         yield chunk
 
-def extract_from_to_emails(chunk):
-    email_pairs = []
-    for msg in chunk:
-        msg_from = email.utils.parseaddr(msg['From'])[1]
-        msg_tos = msg['To']
-        if msg_tos:
-            for msg_to in email.utils.getaddresses([msg_tos]):
-                email_pairs.append((msg_from, msg_to[1]))
-    return email_pairs
+def extract_from_to_emails(msg):
+    def decode_email_header(header):
+        decoded = decode_header(header)
+        return ' '.join([str(t[0], t[1] or 'ascii') for t in decoded])
+
+    msg_from = email.utils.parseaddr(decode_email_header(msg['From']))[1]
+    msg_to = msg.get_all('To', [])
+    msg_cc = msg.get_all('Cc', [])
+    msg_bcc = msg.get_all('Bcc', [])
+    all_recipients = msg_to + msg_cc + msg_bcc
+
+    recipients = [email.utils.parseaddr(decode_email_header(addr))[1] for addr in all_recipients]
+
+    return msg_from, recipients
 
 def process_mbox(mbox_path, chunk_size=500):
     email_count = defaultdict(int)
