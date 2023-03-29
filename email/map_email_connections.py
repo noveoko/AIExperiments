@@ -4,6 +4,7 @@ from collections import defaultdict
 from itertools import combinations
 import networkx as nx
 import matplotlib.pyplot as plt
+import sys
 
 def read_mbox_chunk(mbox_path, chunk_size):
     mbox = mailbox.mbox(mbox_path)
@@ -60,11 +61,15 @@ def plot_bar_chart(email_count):
     plt.title("Top 10 Most Active Email Accounts")
     plt.show()
 
-def main():
-    mbox_path = "path/to/your/mbox/file.mbox"
+def main(mbox_path):
     email_count = process_mbox(mbox_path)
     draw_network_graph(email_count)
     plot_bar_chart(email_count)
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) < 2:
+        print("Usage: python3 script.py <path_to_mbox>")
+        sys.exit(1)
+
+    mbox_path = sys.argv[1]
+    main(mbox_path)
