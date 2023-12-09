@@ -1,9 +1,134 @@
 import pygame
-!pip install pymunk svgpathtools
 import pymunk
 from svgpathtools import svg2paths
-import numpy as np
 import cv2
+from functools import partial
+import numpy as np
+import matplotlib.pyplot as plt
+
+def wrap_waveform_in_circle_export_svg(wave_function, num_points=1000, num_cycles=5, fill_color='blue', fill_alpha=0.5, 
+                                       line_color='black', line_alpha=1.0, diameter_to_wave_max_ratio=1.0, 
+                                       smoothness=0, export_svg=False, svg_filename="waveform_circle.svg"):
+    """
+    Wraps a waveform around a circle with adjustable parameters and option to export a clean SVG of the shape.
+
+    :param wave_function: A function that defines the waveform.
+    :param num_points: Number of points to plot on the circle.
+    :param num_cycles: Number of cycles of the wave to wrap around the circle.
+    :param fill_color: Color of the fill.
+    :param fill_alpha: Alpha (transparency) of the fill.
+    :param line_color: Color of the line.
+    :param line_alpha: Alpha (transparency) of the line.
+    :param diameter_to_wave_max_ratio: Ratio of the circle's diameter to the maximum amplitude of the wave.
+    :param smoothness: A value between 0 and 1 indicating the degree of smoothing.
+    :param export_svg: If True, exports the plot as an SVG file.
+    :param svg_filename: The filename for the SVG file.
+    :return: None
+    """
+    # Adjust the wave_function with smoothing
+    adjusted_wave_function = list_to_waveform(wave_function(np.linspace(0, 2 * np.pi, num_points)), smoothness)
+
+    # Generate points along the circle
+    theta = np.linspace(0, 2 * np.pi * num_cycles, num_points)
+    wave_values = adjusted_wave_function(theta)
+    max_wave_amplitude = np.max(np.abs(wave_values))
+    
+    # Adjust the radius based on the maximum wave amplitude
+    r = 1 + (wave_values / max_wave_amplitude) * diameter_to_wave_max_ratio
+
+    # Convert polar coordinates to Cartesian coordinates for plotting
+    x = r * np.cos(theta)
+    y = r * np.sin(theta)
+
+    # Create the plot
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.fill(x, y, color=fill_color, alpha=fill_alpha, edgecolor=line_color, linewidth=1.5)
+    ax.set_axis_off()  # Turn off the axis
+    ax.set_aspect('equal', 'box')  # Keep the aspect ratio of the plot
+
+    # Export as SVG if required
+    if export_svg:
+        fig.savefig(svg_filename, format='svg', bbox_inches='tight', pad_inches=0, transparent=True)
+        plt.close(fig)  # Close the plot to prevent it from displaying in this case
+        print(f"SVG file saved as {svg_filename}")
+    else:
+        plt.show()
+
+
+wrap_waveform_in_circle = partial(wrap_waveform_in_circle_export_svg, export_svg=False)
+
+def smooth_waveform(lst, smoothing_factor):
+    """
+    Applies a smoothing algorithm to the waveform list.
+
+    :param lst: A list of integers representing the waveform.
+    :param smoothing_factor: A value between 0 and 1 indicating the degree of smoothing.
+    :return: A smoothed list.
+    """
+    if smoothing_factor <= 0:
+        return lst
+    elif smoothing_factor >= 1:
+        return [np.mean(lst)] * len(lst)
+
+    smoothed_lst = np.copy(lst).astype(float)
+    window_size = int(len(lst) * smoothing_factor)
+
+    for i in range(len(lst)):
+        start = max(i - window_size, 0)
+        end = min(i + window_size + 1, len(lst))
+        smoothed_lst[i] = np.mean(lst[start:end])
+
+    return smoothed_lst
+
+def list_to_waveform(lst, smoothing=0):
+    """
+    Converts a list of integers to a waveform function, with optional smoothing.
+    
+    :param lst: A list of integers.
+    :param smoothing: A value between 0 and 1 indicating the degree of smoothing.
+    :return: A function representing the waveform.
+    """
+    smoothed_lst = smooth_waveform(lst, smoothing)
+    
+    max_theta = 2 * np.pi  # Full circle
+    lst_len = len(smoothed_lst)
+
+    def waveform(theta):
+        # Use vectorized operations to handle an array of theta values
+        indices = (theta % max_theta) / max_theta * lst_len
+        indices = indices.astype(int)  # Convert to integer indices
+        return np.array([smoothed_lst[i] * 0.1 for i in indices])  # Scale the values and create the waveform
+
+    return waveform
+
+# Convert the example list to a waveform function with smoothing
+smoothing_factor = 0.5  # Example smoothing factor
+example_list = [1,2,3,2,3,2,10]
+waveform_from_list_smoothed = list_to_waveform(example_list, smoothing=smoothing_factor)
+
+# Wrap this new smoothed waveform around the circle
+wrap_waveform_in_circle(waveform_from_list_smoothed)
+
+
+def list_to_waveform(lst, smoothness=0):
+    """
+    Converts a list of integers to a waveform function, with optional smoothing.
+    
+    :param lst: A list of integers.
+    :param smoothness: A value between 0 and 1 indicating the degree of smoothing.
+    :return: A function representing the waveform.
+    """
+    smoothed_lst = smooth_waveform(lst, smoothness)
+    
+    max_theta = 2 * np.pi  # Full circle
+    lst_len = len(smoothed_lst)
+
+    def waveform(theta):
+        indices = (theta % max_theta) / max_theta * lst_len
+        indices = indices.astype(int)  # Convert to integer indices
+        return np.array([smoothed_lst[i] * 0.1 for i in indices])  # Scale the values and create the waveform
+
+    return waveform
 
 def wrap_waveform_in_circle_export_svg(wave_function, num_points=1000, num_cycles=5, fill_color='blue', fill_alpha=0.5, 
                                        line_color='black', line_alpha=1.0, diameter_to_wave_max_ratio=1.0, 
@@ -91,6 +216,26 @@ for i in range(100):
   wrap_waveform_in_circle_export_svg(one_hundred_waveforms[i], svg_filename=path,export_svg=True)
   shapes.append(path)
 
+def create_circle(shape, space):
+    # Extract circle properties
+    center = np.array([float(shape.center.real), float(shape.center.imag)])
+    radius = float(shape.radius)
+    
+    # Create a Pymunk body and circle shape
+    body = Body(body_type=Body.STATIC)
+    circle = Circle(body, radius)
+    circle.body.position = center
+    space.add(body, circle)
+
+def create_polygon(shape, space):
+    # Extract polygon points
+    points = [(line.start.real, line.start.imag) for line in shape]
+
+    # Create a Pymunk body and polygon shape
+    body = Body(body_type=Body.STATIC)
+    poly = Poly(body, points)
+    space.add(body, poly)
+    
 def load_svg_shapes(svg_filenames, space):
     shapes = []
     for filename in svg_filenames:
@@ -143,7 +288,7 @@ def main(shapes):
     video_size = (800, 600)
     video_fps = 60
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec used to compress the frames
-    video = cv2.VideoWriter('simulation.mp4', fourcc, video_fps, video_size)
+    video = cv2.VideoWriter('renders/simulation.mp4', fourcc, video_fps, video_size)
 
     running = True
     clock = pygame.time.Clock()

@@ -1,5 +1,4 @@
 import pygame
-!pip install pymunk svgpathtools
 import pymunk
 from svgpathtools import svg2paths
 import numpy as np
@@ -61,25 +60,7 @@ wrap_waveform_in_circle_export_svg(waveform_from_list, fill_color='red', fill_al
                                    line_color='black', line_alpha=0.8, diameter_to_wave_max_ratio=1.5, 
                                    smoothness=0.5, export_svg=True, svg_filename="clean_waveform.svg")
 
-def list_to_waveform(lst, smoothness=0):
-    """
-    Converts a list of integers to a waveform function, with optional smoothing.
-    
-    :param lst: A list of integers.
-    :param smoothness: A value between 0 and 1 indicating the degree of smoothing.
-    :return: A function representing the waveform.
-    """
-    smoothed_lst = smooth_waveform(lst, smoothness)
-    
-    max_theta = 2 * np.pi  # Full circle
-    lst_len = len(smoothed_lst)
 
-    def waveform(theta):
-        indices = (theta % max_theta) / max_theta * lst_len
-        indices = indices.astype(int)  # Convert to integer indices
-        return np.array([smoothed_lst[i] * 0.1 for i in indices])  # Scale the values and create the waveform
-
-    return waveform
 
 
 one_hundred_waveforms = [list_to_waveform([random.randint(1,100) for x in range(100)]) for x in range(100)]
