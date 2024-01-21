@@ -42,7 +42,10 @@ for clone_id in range(10):
 
 print('Now listen to each file and choose the best match!')
 
-my_favorite = 8
+# Cell 1: Create an input box
+my_favorite = input("Which voice sounds the best?: ")
+assert int(my_favorite)
+
 
 link_to_my_text = r'/content/three_roses.txt'
 
