@@ -93,6 +93,6 @@ def concatenate_audio(directory_path, output_file):
 #     # Call the function with provided arguments
 #     concatenate_audio(args.directory, args.output_file)
 
-concatenate_audio(r"/content/clone_audio","Teresa_clone.mp3")
+concatenate_audio(r"/content/clone_audio","Voice_clone_output.mp3")
 
 # Viola! Enjoy your clone
