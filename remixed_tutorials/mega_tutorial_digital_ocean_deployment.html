@@ -1,32 +1,3 @@
-<div class="post-body"><p>This is the eighteenth installment of the Flask Mega-Tutorial series, in which I'm going to deploy Microblog to the DigitalOcean cloud platform.</p>
-<p>You are reading the 2024 edition of the Flask Mega-Tutorial. The complete course is also available to order in e-book and paperback formats from <a href="https://amzn.to/3ahVnPN">Amazon</a>. Thank you for your support!</p>
-<p>If you are looking for the 2018 edition of this course, you can find it <a href="/post/the-flask-mega-tutorial-part-i-hello-world-2018">here</a>.</p>
-<p>For your reference, here is the complete list of articles in this series:</p>
-<ul>
-<li><a href="/post/the-flask-mega-tutorial-part-i-hello-world">Chapter 1:  Hello, World!</a></li>
-<li><a href="/post/the-flask-mega-tutorial-part-ii-templates">Chapter 2:  Templates</a></li>
-<li><a href="/post/the-flask-mega-tutorial-part-iii-web-forms">Chapter 3:  Web Forms</a></li>
-<li><a href="/post/the-flask-mega-tutorial-part-iv-database">Chapter 4:  Database</a></li>
-<li><a href="/post/the-flask-mega-tutorial-part-v-user-logins">Chapter 5:  User Logins</a></li>
-<li><a href="/post/the-flask-mega-tutorial-part-vi-profile-page-and-avatars">Chapter 6:  Profile Page and Avatars</a></li>
-<li><a href="/post/the-flask-mega-tutorial-part-vii-error-handling">Chapter 7:  Error Handling</a></li>
-<li><a href="/post/the-flask-mega-tutorial-part-viii-followers">Chapter 8:  Followers</a></li>
-<li><a href="/post/the-flask-mega-tutorial-part-ix-pagination">Chapter 9:  Pagination</a></li>
-<li><a href="/post/the-flask-mega-tutorial-part-x-email-support">Chapter 10:  Email Support</a></li>
-<li><a href="/post/the-flask-mega-tutorial-part-xi-facelift">Chapter 11:  Facelift</a></li>
-<li><a href="/post/the-flask-mega-tutorial-part-xii-dates-and-times">Chapter 12:  Dates and Times</a></li>
-<li><a href="/post/the-flask-mega-tutorial-part-xiii-i18n-and-l10n">Chapter 13:  I18n and L10n</a></li>
-<li><a href="/post/the-flask-mega-tutorial-part-xiv-ajax">Chapter 14:  Ajax</a></li>
-<li><a href="/post/the-flask-mega-tutorial-part-xv-a-better-application-structure">Chapter 15:  A Better Application Structure</a></li>
-<li><a href="/post/the-flask-mega-tutorial-part-xvi-full-text-search">Chapter 16:  Full-Text Search</a></li>
-<li><a href="/post/the-flask-mega-tutorial-part-xvii-deployment-on-linux">Chapter 17:  Deployment on Linux</a></li>
-<li><a href="/post/the-flask-mega-tutorial-part-xviii-deployment-on-digitalocean">Chapter 18:  Deployment on DigitalOcean</a> (this article)</li>
-<li><a href="/post/the-flask-mega-tutorial-part-xix-deployment-on-docker-containers">Chapter 19:  Deployment on Docker Containers</a></li>
-<li><a href="/post/the-flask-mega-tutorial-part-xx-some-javascript-magic">Chapter 20:  Some JavaScript Magic</a></li>
-<li><a href="/post/the-flask-mega-tutorial-part-xxi-user-notifications">Chapter 21:  User Notifications</a></li>
-<li><a href="/post/the-flask-mega-tutorial-part-xxii-background-jobs">Chapter 22:  Background Jobs</a></li>
-<li><a href="/post/the-flask-mega-tutorial-part-xxiii-application-programming-interfaces-apis">Chapter 23:  Application Programming Interfaces (APIs)</a></li>
-</ul>
 <p>In the previous article I showed you the "traditional" way to host a Python application, and I gave you an actual example of deployment to a Linux based server. If you are not used to manage a Linux system, you probably thought that the amount of effort that needs to be put into the task was big, and that surely there must be an easier way.</p>
 <p>In this chapter I'm going to show you a completely different approach, in which you rely on a third-party <em>cloud</em> hosting provider to perform most of the administration tasks, freeing you to spend more time working on your application.</p>
 <p>Many cloud hosting providers offer a managed platform on which applications can run. All you need to provide to have your application deployed on these platforms is the actual application, because the hardware, operating system, scripting language interpreters, database, etc. are all managed by the service. This type of service is called <a href="https://en.wikipedia.org/wiki/Platform_as_a_service">Platform as a Service</a>, or PaaS.</p>
