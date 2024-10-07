@@ -2,19 +2,22 @@ import re
 from collections import defaultdict
 
 class Person:
-    def __init__(self, first_name, last_name, place, year_of_birth=None, year_of_death=None, children=None, spouse=None):
+    def __init__(self, first_name, last_name, place=None, year_of_birth=None, year_of_death=None):
         self.first_name = first_name
         self.last_name = last_name
         self.place = place
         self.year_of_birth = year_of_birth
         self.year_of_death = year_of_death
-        self.children = children or []
-        self.spouse = spouse
+        self.children = []
+        self.spouse = None
+        self.parents = []
 
     def __repr__(self):
         return (f"Person(first_name='{self.first_name}', last_name='{self.last_name}', "
                 f"place='{self.place}', year_of_birth={self.year_of_birth}, "
-                f"year_of_death={self.year_of_death}, children={self.children}, spouse={self.spouse})")
+                f"year_of_death={self.year_of_death}, children={len(self.children)}, "
+                f"spouse={self.spouse.first_name if self.spouse else None}, "
+                f"parents={[parent.first_name for parent in self.parents]})")
 
 def parse_person_data(row):
     """Parse individual person data from a row."""
@@ -34,6 +37,12 @@ def parse_death_data(row):
         return match.groupdict()
     return None
 
+def get_or_create_person(family_tree, first_name, last_name, place=None, year_of_birth=None):
+    """Retrieve an existing person from the family tree or create a new one."""
+    if first_name not in family_tree[last_name]:
+        family_tree[last_name][first_name] = Person(first_name, last_name, place=place, year_of_birth=year_of_birth)
+    return family_tree[last_name][first_name]
+
 def process_spouse_info(info, family_tree, last_name, first_name):
     """Process spouse information from the info string."""
     spouse_info = re.findall(r"żona ([\w\s]+)", info)
@@ -42,9 +51,13 @@ def process_spouse_info(info, family_tree, last_name, first_name):
         spouse_parts = spouse_name.split()
         spouse_first_name, spouse_last_name = spouse_parts[0], spouse_parts[-1]
 
-        if spouse_first_name in family_tree[spouse_last_name]:
-            family_tree[last_name][first_name].spouse = family_tree[spouse_last_name][spouse_first_name]
-            family_tree[spouse_last_name][spouse_first_name].spouse = family_tree[last_name][first_name]
+        # Retrieve or create the spouse
+        spouse = get_or_create_person(family_tree, spouse_first_name, spouse_last_name)
+
+        # Link spouses both ways
+        person = family_tree[last_name][first_name]
+        person.spouse = spouse
+        spouse.spouse = person
 
 def process_children_info(info, family_tree, last_name, first_name):
     """Process children information from the info string."""
@@ -55,26 +68,32 @@ def process_children_info(info, family_tree, last_name, first_name):
             child_parts = child_name.split()
             if len(child_parts) >= 2:  # Ensure at least a first and last name
                 child_first_name, child_last_name = child_parts[0], child_parts[-1]
-                if child_first_name in family_tree[child_last_name]:
-                    family_tree[child_last_name][child_first_name].place = family_tree[last_name][first_name].place
-                    family_tree[last_name][first_name].children.append(family_tree[child_last_name][child_first_name])
+
+                # Retrieve or create the child
+                child = get_or_create_person(family_tree, child_first_name, child_last_name)
+
+                # Link children to parents (bi-directional)
+                parent = family_tree[last_name][first_name]
+                child.parents.append(parent)
+                parent.children.append(child)
 
 def build_family_tree(data):
+    """Build a complete family tree that connects all relationships."""
     family_tree = defaultdict(dict)
 
     for row in data:
         person_data = parse_person_data(row)
         if person_data:
             first_name, last_name, place, year_of_birth = person_data
-            family_tree[last_name][first_name] = Person(first_name, last_name, place, year_of_birth=year_of_birth)
+            get_or_create_person(family_tree, first_name, last_name, place, year_of_birth)
         else:
             death_data = parse_death_data(row)
             if death_data:
                 first_name = death_data['first_name']
                 last_name = death_data['last_name']
                 year_of_death = int(death_data['year_of_death'])
-                if first_name in family_tree[last_name]:
-                    family_tree[last_name][first_name].year_of_death = year_of_death
+                person = get_or_create_person(family_tree, first_name, last_name)
+                person.year_of_death = year_of_death
 
                 # Process spouse and children
                 process_spouse_info(death_data['info'], family_tree, last_name, first_name)
