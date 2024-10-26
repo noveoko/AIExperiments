@@ -94,10 +94,6 @@ Here are some movies set in Bulgaria that share a similar pacing, tone, and colo
    - **Synopsis**: A railway worker finds a large sum of money and faces moral dilemmas when he tries to return it, leading to unforeseen consequences.
    - **Tone and Pacing**: This film balances dark humor with serious themes, employing a deliberate pacing that allows for reflection on the characters' choices. The color grading is often bleak, matching the film's themes.
 
-3. **The Last Black Sea Monster (2017)**
-   - **Synopsis**: A documentary exploring the life of a fisherman in Bulgaria who believes he has encountered a mythical creature in the Black Sea.
-   - **Tone and Pacing**: The film has a meditative quality with a slow pace, focusing on personal stories and local folklore. The visuals are rich yet understated, contributing to the overall atmosphere.
-
 4. **Aga (2018)**
    - **Synopsis**: An elderly couple living in the Arctic face the realities of aging and separation as they reflect on their past.
    - **Tone and Pacing**: This film is introspective and poignant, with a slow narrative pace that emphasizes emotional depth. The color grading is soft and naturalistic.
