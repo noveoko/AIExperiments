@@ -1,4 +1,6 @@
-Here are some movies set in Australia that share a similar pacing, tone, and color grading to *The Stranger* (2022):
+# Dark Movies (as suggested by AI)
+
+## Austrailia
 
 1. **The Nightingale (2018)**
    - **Synopsis**: Set in 1825 Tasmania, this film follows a young Irish convict seeking revenge against a British officer.
