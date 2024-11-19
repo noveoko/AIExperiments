@@ -9,99 +9,83 @@ bl_info = {
 }
 
 import bpy
-import os
-from bpy.props import (
-    StringProperty,
-    FloatProperty,
-    IntProperty,
-    EnumProperty,
-    BoolProperty
-)
-from bpy.types import (
-    Panel,
-    Operator,
-    PropertyGroup,
-)
+from bpy.props import (StringProperty, FloatProperty, IntProperty, 
+                      EnumProperty, BoolProperty, PointerProperty)
+from bpy.types import Panel, Operator, PropertyGroup
 
+# Properties
 class M2FormProperties(PropertyGroup):
     image_path: StringProperty(
         name="Image",
-        description="Path to the base image",
-        default="",
-        maxlen=1024,
         subtype='FILE_PATH'
     )
-    
     depth_map_path: StringProperty(
         name="Depth Map",
-        description="Path to the depth map image",
-        default="",
-        maxlen=1024,
         subtype='FILE_PATH'
     )
-    
+    target_object: PointerProperty(
+        name="Target Object",
+        type=bpy.types.Object
+    )
     subdivision_level: IntProperty(
         name="Subdivision Level",
-        description="Level of mesh subdivision",
         default=32,
         min=1,
         max=256
     )
-    
     depth_strength: FloatProperty(
         name="Depth Strength",
-        description="Strength of the depth effect",
         default=1.0,
         min=0.0,
         max=10.0
     )
-    
     smoothing_factor: FloatProperty(
         name="Smoothing",
-        description="Amount of mesh smoothing",
         default=0.5,
         min=0.0,
         max=1.0
     )
-    
     metallic: FloatProperty(
         name="Metallic",
-        description="Material metallic value",
         default=0.0,
         min=0.0,
         max=1.0
     )
-    
     roughness: FloatProperty(
         name="Roughness",
-        description="Material roughness value",
         default=0.5,
         min=0.0,
         max=1.0
     )
-    
     ior: FloatProperty(
         name="IOR",
-        description="Index of Refraction",
         default=1.45,
         min=1.0,
         max=3.0
     )
-        target_object: PointerProperty(
-        name="Target Object",
-        type=bpy.types.Object,
-        description="Object to apply effects to"
-    )
+
+# Operators
+class M2FORM_OT_open_image(Operator):
+    bl_idname = "m2form.open_image"
+    bl_label = "Open Image"
+    
+    def execute(self, context):
+        bpy.ops.screen.userpref_show('INVOKE_DEFAULT')
+        return {'FINISHED'}
 
 class M2FORM_OT_create_mesh(Operator):
     bl_idname = "m2form.create_mesh"
     bl_label = "Create 3D Mesh"
     bl_description = "Convert depth map to 3D mesh"
     bl_options = {'REGISTER', 'UNDO'}
-    
     def execute(self, context):
         props = context.scene.m2form_props
+        obj = props.target_object or context.active_object
         
+        if not obj:
+            self.report({'ERROR'}, "No target object selected")
+            return {'CANCELLED'}
+            
         # Create plane
         bpy.ops.mesh.primitive_plane_add(size=2)
         obj = context.active_object
@@ -163,6 +147,31 @@ class M2FORM_OT_create_mesh(Operator):
         
         return {'FINISHED'}
 
+class M2FORM_OT_view_front(Operator):
+    bl_idname = "m2form.view_front"
+    bl_label = "Front"
+    
+    def execute(self, context):
+        bpy.ops.view3d.view_axis(type='FRONT')
+        return {'FINISHED'}
+
+class M2FORM_OT_view_side(Operator):
+    bl_idname = "m2form.view_side"
+    bl_label = "Side"
+    
+    def execute(self, context):
+        bpy.ops.view3d.view_axis(type='RIGHT')
+        return {'FINISHED'}
+
+class M2FORM_OT_view_top(Operator):
+    bl_idname = "m2form.view_top"
+    bl_label = "Top"
+    
+    def execute(self, context):
+        bpy.ops.view3d.view_axis(type='TOP')
+        return {'FINISHED'}
+
+# Panel
 class M2FORM_PT_main_panel(Panel):
     bl_label = "m2Form"
     bl_idname = "M2FORM_PT_main_panel"
@@ -174,7 +183,7 @@ class M2FORM_PT_main_panel(Panel):
         layout = self.layout
         props = context.scene.m2form_props
         
-        # Title and Open Image button
+        # Title and Open Image
         row = layout.row()
         row.label(text="m2Form")
         row.operator("m2form.open_image", text="Open Image")
@@ -182,21 +191,21 @@ class M2FORM_PT_main_panel(Panel):
         # Main Inputs
         box = layout.box()
         box.label(text="Main Inputs")
-        box.prop(props, "depth_map_path", text="Depth Map")
-        box.prop(props, "image_path", text="Image")
-        box.prop(props, "target_object", text="Target Object")
+        box.prop(props, "depth_map_path")
+        box.prop(props, "image_path")
+        box.prop(props, "target_object")
         
         # Mesh View
         box = layout.box()
         box.label(text="Mesh View")
         row = box.row(align=True)
-        row.operator("m2form.view_front", text="Front")
-        row.operator("m2form.view_side", text="Side")
-        row.operator("m2form.view_top", text="Top")
+        row.operator("m2form.view_front")
+        row.operator("m2form.view_side")
+        row.operator("m2form.view_top")
         
-        box.prop(props, "subdivision_level", text="Subdivision Levels")
-        box.prop(props, "smoothing_factor", text="Smooth Factor")
-        box.prop(props, "depth_strength", text="Depth Strength")
+        box.prop(props, "subdivision_level")
+        box.prop(props, "smoothing_factor")
+        box.prop(props, "depth_strength")
         
         # Material Properties
         box = layout.box()
@@ -206,35 +215,11 @@ class M2FORM_PT_main_panel(Panel):
         box.prop(props, "ior")
         
         # Apply button
-        layout.operator("m2form.create_mesh", text="Apply Depth Map")
-
-class M2FORM_OT_view_front(Operator):
-    bl_idname = "m2form.view_front"
-    bl_label = "Front"
-    
-    def execute(self, context):
-        bpy.ops.view3d.view_axis(type='FRONT')
-        return {'FINISHED'}
-        
-class M2FORM_OT_view_side(Operator):
-    bl_idname = "m2form.view_side"
-    bl_label = "Side"
-    
-    def execute(self, context):
-        bpy.ops.view3d.view_axis(type='RIGHT')
-        return {'FINISHED'}
-        
-class M2FORM_OT_view_top(Operator):
-    bl_idname = "m2form.view_top"
-    bl_label = "Top"
-    
-    def execute(self, context):
-        bpy.ops.view3d.view_axis(type='TOP')
-        return {'FINISHED'}
-        
+        layout.operator("m2form.create_mesh")
 
 classes = (
     M2FormProperties,
+    M2FORM_OT_open_image,
     M2FORM_OT_create_mesh,
     M2FORM_OT_view_front,
     M2FORM_OT_view_side,
@@ -245,12 +230,13 @@ classes = (
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-    bpy.types.Scene.m2form_props = bpy.props.PointerProperty(type=M2FormProperties)
+    bpy.types.Scene.m2form_props = PointerProperty(type=M2FormProperties)
 
 def unregister():
+    del bpy.types.Scene.m2form_props
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
-    del bpy.types.Scene.m2form_props
 
 if __name__ == "__main__":
     register()
+
