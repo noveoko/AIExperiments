@@ -208,6 +208,31 @@ class M2FORM_PT_main_panel(Panel):
         # Apply button
         layout.operator("m2form.create_mesh", text="Apply Depth Map")
 
+class M2FORM_OT_view_front(Operator):
+    bl_idname = "m2form.view_front"
+    bl_label = "Front"
+    
+    def execute(self, context):
+        bpy.ops.view3d.view_axis(type='FRONT')
+        return {'FINISHED'}
+        
+class M2FORM_OT_view_side(Operator):
+    bl_idname = "m2form.view_side"
+    bl_label = "Side"
+    
+    def execute(self, context):
+        bpy.ops.view3d.view_axis(type='RIGHT')
+        return {'FINISHED'}
+        
+class M2FORM_OT_view_top(Operator):
+    bl_idname = "m2form.view_top"
+    bl_label = "Top"
+    
+    def execute(self, context):
+        bpy.ops.view3d.view_axis(type='TOP')
+        return {'FINISHED'}
+        
+
 classes = (
     M2FormProperties,
     M2FORM_OT_create_mesh,
