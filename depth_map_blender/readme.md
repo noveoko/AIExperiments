@@ -1,7 +1,7 @@
-# zForm - Depth Map to 3D Mesh Converter
+# m2Form - Depth Map to 3D Mesh Converter
 ## Blender Addon Documentation
 
-zForm is a powerful Blender addon that transforms depth maps and images into detailed 3D meshes with just a few clicks. This tool streamlines the process of converting 2D content into 3D, making it perfect for creating relief sculptures, terrain, architectural details, and more.
+m2Form is a powerful Blender addon that transforms depth maps and images into detailed 3D meshes with just a few clicks. This tool streamlines the process of converting 2D content into 3D, making it perfect for creating relief sculptures, terrain, architectural details, and more.
 
 ## Table of Contents
 - [Installation](#installation)
