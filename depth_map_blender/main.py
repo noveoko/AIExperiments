@@ -87,6 +87,11 @@ class M2FormProperties(PropertyGroup):
         min=1.0,
         max=3.0
     )
+        target_object: PointerProperty(
+        name="Target Object",
+        type=bpy.types.Object,
+        description="Object to apply effects to"
+    )
 
 class M2FORM_OT_create_mesh(Operator):
     bl_idname = "m2form.create_mesh"
@@ -169,30 +174,46 @@ class M2FORM_PT_main_panel(Panel):
         layout = self.layout
         props = context.scene.m2form_props
         
-        # File inputs
-        layout.label(text="Input Files:")
-        layout.prop(props, "image_path")
-        layout.prop(props, "depth_map_path")
+        # Title and Open Image button
+        row = layout.row()
+        row.label(text="m2Form")
+        row.operator("m2form.open_image", text="Open Image")
         
-        # Mesh settings
-        layout.label(text="Mesh Settings:")
-        layout.prop(props, "subdivision_level")
-        layout.prop(props, "depth_strength")
-        layout.prop(props, "smoothing_factor")
+        # Main Inputs
+        box = layout.box()
+        box.label(text="Main Inputs")
+        box.prop(props, "depth_map_path", text="Depth Map")
+        box.prop(props, "image_path", text="Image")
+        box.prop(props, "target_object", text="Target Object")
         
-        # Material settings
-        layout.label(text="Material Settings:")
-        layout.prop(props, "metallic")
-        layout.prop(props, "roughness")
-        layout.prop(props, "ior")
+        # Mesh View
+        box = layout.box()
+        box.label(text="Mesh View")
+        row = box.row(align=True)
+        row.operator("m2form.view_front", text="Front")
+        row.operator("m2form.view_side", text="Side")
+        row.operator("m2form.view_top", text="Top")
         
-        # Create button
-        layout.separator()
-        layout.operator("m2form.create_mesh", text="Create 3D Mesh")
+        box.prop(props, "subdivision_level", text="Subdivision Levels")
+        box.prop(props, "smoothing_factor", text="Smooth Factor")
+        box.prop(props, "depth_strength", text="Depth Strength")
+        
+        # Material Properties
+        box = layout.box()
+        box.label(text="Material Properties")
+        box.prop(props, "metallic")
+        box.prop(props, "roughness")
+        box.prop(props, "ior")
+        
+        # Apply button
+        layout.operator("m2form.create_mesh", text="Apply Depth Map")
 
 classes = (
     M2FormProperties,
     M2FORM_OT_create_mesh,
+    M2FORM_OT_view_front,
+    M2FORM_OT_view_side,
+    M2FORM_OT_view_top,
     M2FORM_PT_main_panel,
 )
 
