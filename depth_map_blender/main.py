@@ -1,9 +1,9 @@
 bl_info = {
-    "name": "zForm - Depth Map to 3D Mesh",
+    "name": "m2Form - Depth Map to 3D Mesh",
     "author": "Assistant",
     "version": (1, 0),
     "blender": (4, 0, 0),
-    "location": "View3D > Sidebar > zForm",
+    "location": "View3D > Sidebar > m2Form",
     "description": "Convert depth maps and images to 3D meshes",
     "category": "3D View",
 }
@@ -23,7 +23,7 @@ from bpy.types import (
     PropertyGroup,
 )
 
-class ZFormProperties(PropertyGroup):
+class M2FormProperties(PropertyGroup):
     image_path: StringProperty(
         name="Image",
         description="Path to the base image",
@@ -88,14 +88,14 @@ class ZFormProperties(PropertyGroup):
         max=3.0
     )
 
-class ZFORM_OT_create_mesh(Operator):
-    bl_idname = "zform.create_mesh"
+class M2FORM_OT_create_mesh(Operator):
+    bl_idname = "m2form.create_mesh"
     bl_label = "Create 3D Mesh"
     bl_description = "Convert depth map to 3D mesh"
     bl_options = {'REGISTER', 'UNDO'}
     
     def execute(self, context):
-        props = context.scene.zform_props
+        props = context.scene.m2form_props
         
         # Create plane
         bpy.ops.mesh.primitive_plane_add(size=2)
@@ -118,7 +118,7 @@ class ZFORM_OT_create_mesh(Operator):
             displace.strength = props.depth_strength
         
         # Create material
-        mat = bpy.data.materials.new(name="zForm_Material")
+        mat = bpy.data.materials.new(name="m2Form_Material")
         mat.use_nodes = True
         nodes = mat.node_tree.nodes
         links = mat.node_tree.links
@@ -158,16 +158,16 @@ class ZFORM_OT_create_mesh(Operator):
         
         return {'FINISHED'}
 
-class ZFORM_PT_main_panel(Panel):
-    bl_label = "zForm"
-    bl_idname = "ZFORM_PT_main_panel"
+class M2FORM_PT_main_panel(Panel):
+    bl_label = "m2Form"
+    bl_idname = "M2FORM_PT_main_panel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = 'zForm'
+    bl_category = 'm2Form'
     
     def draw(self, context):
         layout = self.layout
-        props = context.scene.zform_props
+        props = context.scene.m2form_props
         
         # File inputs
         layout.label(text="Input Files:")
@@ -188,23 +188,23 @@ class ZFORM_PT_main_panel(Panel):
         
         # Create button
         layout.separator()
-        layout.operator("zform.create_mesh", text="Create 3D Mesh")
+        layout.operator("m2form.create_mesh", text="Create 3D Mesh")
 
 classes = (
-    ZFormProperties,
-    ZFORM_OT_create_mesh,
-    ZFORM_PT_main_panel,
+    M2FormProperties,
+    M2FORM_OT_create_mesh,
+    M2FORM_PT_main_panel,
 )
 
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-    bpy.types.Scene.zform_props = bpy.props.PointerProperty(type=ZFormProperties)
+    bpy.types.Scene.m2form_props = bpy.props.PointerProperty(type=M2FormProperties)
 
 def unregister():
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
-    del bpy.types.Scene.zform_props
+    del bpy.types.Scene.m2form_props
 
 if __name__ == "__main__":
     register()
