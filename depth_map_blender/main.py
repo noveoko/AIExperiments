@@ -15,7 +15,7 @@ from bpy.types import Panel, Operator, PropertyGroup
 
 # Properties
 class M2FormProperties(PropertyGroup):
-      image_path: StringProperty(
+    image_path: StringProperty(
         name="Image",
         subtype='FILE_PATH',
         # Add filter
