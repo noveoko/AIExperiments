@@ -18,8 +18,8 @@ from bpy_extras.io_utils import ImportHelper
 # Properties
 class M2FormProperties(PropertyGroup):
     image_path: StringProperty(
-        name="Image",
-        description="Choose a base image",
+        name="Base Image",
+        description="Choose your 2D image",
         default="",
         maxlen=1024,
         subtype='FILE_PATH'
@@ -27,64 +27,36 @@ class M2FormProperties(PropertyGroup):
     
     depth_map_path: StringProperty(
         name="Depth Map",
-        description="Choose a depth map image",
+        description="Choose the depth map for your image",
         default="",
         maxlen=1024,
         subtype='FILE_PATH'
     )
     
-    target_object: PointerProperty(
-        name="Target Object",
-        type=bpy.types.Object,
-        description="Select object to apply modifiers to"
-    )
-    
     subdivision_level: IntProperty(
-        name="Subdivision Level",
-        description="Number of subdivisions",
-        default=32,
+        name="Subdivision",
+        description="Level of mesh detail (higher values = more detail)",
+        default=8,  # Changed to match video's preferred default
         min=1,
-        max=256
+        max=32
     )
     
     depth_strength: FloatProperty(
-        name="Depth Strength",
-        description="Strength of displacement effect",
-        default=1.0,
+        name="Depth",
+        description="Strength of the depth effect (1.0 = normal, 2.0 = enhanced)",
+        default=1.0,  # Video shows 1.0 works best for most cases
         min=0.0,
-        max=10.0
+        max=2.0,
+        precision=2
     )
     
     smoothing_factor: FloatProperty(
-        name="Smoothing",
+        name="Smooth",
         description="Amount of mesh smoothing",
-        default=0.5,
+        default=0.8,  # Changed based on video demonstration
         min=0.0,
-        max=1.0
-    )
-    
-    metallic: FloatProperty(
-        name="Metallic",
-        description="Material metallic value",
-        default=0.0,
-        min=0.0,
-        max=1.0
-    )
-    
-    roughness: FloatProperty(
-        name="Roughness",
-        description="Material roughness value",
-        default=0.5,
-        min=0.0,
-        max=1.0
-    )
-    
-    ior: FloatProperty(
-        name="IOR",
-        description="Index of Refraction",
-        default=1.45,
-        min=1.0,
-        max=3.0
+        max=1.0,
+        precision=2
     )
 
 class M2FORM_OT_choose_image(Operator, ImportHelper):
@@ -113,13 +85,13 @@ class M2FORM_OT_choose_image(Operator, ImportHelper):
 class M2FORM_OT_create_mesh(Operator):
     bl_idname = "m2form.create_mesh"
     bl_label = "Apply Depth Map"
-    bl_description = "Convert depth map to 3D mesh"
+    bl_description = "Convert your image and depth map to 3D mesh"
     bl_options = {'REGISTER', 'UNDO'}
     
     @classmethod
     def poll(cls, context):
         props = context.scene.m2form_props
-        return props.depth_map_path != "" or props.image_path != ""
+        return props.depth_map_path != "" and props.image_path != ""
     
     def execute(self, context):
         try:
@@ -127,46 +99,36 @@ class M2FORM_OT_create_mesh(Operator):
             
             # Check for input files
             if not os.path.exists(bpy.path.abspath(props.depth_map_path)):
-                self.report({'ERROR'}, "Depth map file not found")
+                self.report({'ERROR'}, "Please select a depth map")
                 return {'CANCELLED'}
             
-            if props.image_path and not os.path.exists(bpy.path.abspath(props.image_path)):
-                self.report({'ERROR'}, "Image file not found")
+            if not os.path.exists(bpy.path.abspath(props.image_path)):
+                self.report({'ERROR'}, "Please select a base image")
                 return {'CANCELLED'}
             
-            # Use existing object or create new one
-            if props.target_object:
-                obj = props.target_object
-            else:
-                bpy.ops.mesh.primitive_plane_add(size=2)
-                obj = context.active_object
-            
-            # Clear existing modifiers
-            obj.modifiers.clear()
+            # Create new plane
+            bpy.ops.mesh.primitive_plane_add(size=2)
+            obj = context.active_object
             
             # Add subdivision modifier
             subdiv = obj.modifiers.new(name="Subdivision", type='SUBSURF')
             subdiv.levels = props.subdivision_level
             subdiv.render_levels = props.subdivision_level
+            subdiv.quality = 3  # Higher quality subdivisions
             
             # Add displacement modifier
             displace = obj.modifiers.new(name="Displacement", type='DISPLACE')
             
             # Load and apply depth map texture
-            if props.depth_map_path:
-                depth_tex = bpy.data.textures.new(name="Depth", type='IMAGE')
-                depth_img = bpy.data.images.load(bpy.path.abspath(props.depth_map_path))
-                depth_tex.image = depth_img
-                displace.texture = depth_tex
-                displace.strength = props.depth_strength
+            depth_tex = bpy.data.textures.new(name="Depth", type='IMAGE')
+            depth_img = bpy.data.images.load(bpy.path.abspath(props.depth_map_path))
+            depth_tex.image = depth_img
+            displace.texture = depth_tex
+            displace.strength = props.depth_strength
+            displace.mid_level = 0.5  # Center the displacement
             
-            # Create or get material
-            mat_name = "m2Form_Material"
-            mat = bpy.data.materials.get(mat_name)
-            if mat:
-                mat.user_clear()
-                bpy.data.materials.remove(mat)
-            mat = bpy.data.materials.new(name=mat_name)
+            # Create material
+            mat = bpy.data.materials.new(name="m2Form_Material")
             mat.use_nodes = True
             nodes = mat.node_tree.nodes
             links = mat.node_tree.links
@@ -175,67 +137,42 @@ class M2FORM_OT_create_mesh(Operator):
             nodes.clear()
             
             # Create nodes
+            node_tex = nodes.new('ShaderNodeTexImage')
             node_principled = nodes.new('ShaderNodeBsdfPrincipled')
             node_output = nodes.new('ShaderNodeOutputMaterial')
             
             # Load and apply base image texture
-            if props.image_path:
-                node_tex = nodes.new('ShaderNodeTexImage')
-                img = bpy.data.images.load(bpy.path.abspath(props.image_path))
-                node_tex.image = img
-                links.new(node_tex.outputs['Color'], node_principled.inputs['Base Color'])
+            img = bpy.data.images.load(bpy.path.abspath(props.image_path))
+            node_tex.image = img
             
             # Connect nodes
+            links.new(node_tex.outputs['Color'], node_principled.inputs['Base Color'])
             links.new(node_principled.outputs['BSDF'], node_output.inputs['Surface'])
             
-            # Set material properties
-            node_principled.inputs['Metallic'].default_value = props.metallic
-            node_principled.inputs['Roughness'].default_value = props.roughness
-            node_principled.inputs['IOR'].default_value = props.ior
+            # Position nodes nicely
+            node_tex.location = (-300, 300)
+            node_principled.location = (0, 300)
+            node_output.location = (300, 300)
             
-            # Assign material to object
-            if obj.data.materials:
-                obj.data.materials[0] = mat
-            else:
-                obj.data.materials.append(mat)
+            # Assign material
+            obj.data.materials.clear()
+            obj.data.materials.append(mat)
             
             # Apply smooth shading
-            obj.select_set(True)
-            context.view_layer.objects.active = obj
             bpy.ops.object.shade_smooth()
             obj.data.use_auto_smooth = True
             obj.data.auto_smooth_angle = props.smoothing_factor * 3.14159
             
-            self.report({'INFO'}, "Depth map applied successfully")
+            # Set up optimal view
+            bpy.ops.view3d.view_axis(type='FRONT')
+            bpy.ops.view3d.view_selected(use_all_regions=False)
+            
+            self.report({'INFO'}, "3D mesh created successfully")
             return {'FINISHED'}
             
         except Exception as e:
             self.report({'ERROR'}, f"Error: {str(e)}")
             return {'CANCELLED'}
-
-class M2FORM_OT_view_front(Operator):
-    bl_idname = "m2form.view_front"
-    bl_label = "Front"
-    
-    def execute(self, context):
-        bpy.ops.view3d.view_axis(type='FRONT')
-        return {'FINISHED'}
-
-class M2FORM_OT_view_side(Operator):
-    bl_idname = "m2form.view_side"
-    bl_label = "Side"
-    
-    def execute(self, context):
-        bpy.ops.view3d.view_axis(type='RIGHT')
-        return {'FINISHED'}
-
-class M2FORM_OT_view_top(Operator):
-    bl_idname = "m2form.view_top"
-    bl_label = "Top"
-    
-    def execute(self, context):
-        bpy.ops.view3d.view_axis(type='TOP')
-        return {'FINISHED'}
 
 class M2FORM_PT_main_panel(Panel):
     bl_label = "m2Form"
@@ -248,56 +185,30 @@ class M2FORM_PT_main_panel(Panel):
         layout = self.layout
         props = context.scene.m2form_props
         
-        # Title
-        layout.label(text="m2Form")
-        
-        # Main Inputs
+        # Base Image Selection
         box = layout.box()
-        box.label(text="Main Inputs")
-        
-        # Depth Map
         row = box.row()
-        row.prop(props, "depth_map_path")
-        op = row.operator("m2form.choose_image", text="", icon='FILE_FOLDER')
-        op.is_depth_map = True
+        row.prop(props, "image_path", text="Base Image")
+        row.operator("m2form.choose_image", text="", icon='FILE_FOLDER').is_depth_map = False
         
-        # Base Image
+        # Depth Map Selection
         row = box.row()
-        row.prop(props, "image_path")
-        op = row.operator("m2form.choose_image", text="", icon='FILE_FOLDER')
-        op.is_depth_map = False
+        row.prop(props, "depth_map_path", text="Depth Map")
+        row.operator("m2form.choose_image", text="", icon='FILE_FOLDER').is_depth_map = True
         
-        box.prop(props, "target_object")
-        
-        # Mesh View
+        # Settings
         box = layout.box()
-        box.label(text="Mesh View")
-        row = box.row(align=True)
-        row.operator("m2form.view_front")
-        row.operator("m2form.view_side")
-        row.operator("m2form.view_top")
-        
         box.prop(props, "subdivision_level")
         box.prop(props, "smoothing_factor")
         box.prop(props, "depth_strength")
         
-        # Material Properties
-        box = layout.box()
-        box.label(text="Material Properties")
-        box.prop(props, "metallic")
-        box.prop(props, "roughness")
-        box.prop(props, "ior")
-        
         # Apply button
-        layout.operator("m2form.create_mesh")
+        layout.operator("m2form.create_mesh", text="Apply Depth Map", icon='MESH_DATA')
 
 classes = (
     M2FormProperties,
     M2FORM_OT_choose_image,
     M2FORM_OT_create_mesh,
-    M2FORM_OT_view_front,
-    M2FORM_OT_view_side,
-    M2FORM_OT_view_top,
     M2FORM_PT_main_panel,
 )
 
