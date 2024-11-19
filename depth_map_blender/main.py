@@ -69,7 +69,10 @@ class M2FORM_OT_open_image(Operator):
     bl_idname = "m2form.open_image"
     bl_label = "Open Image"
     
+    filepath: StringProperty(subtype='FILE_PATH')
+    
     def execute(self, context):
+        # Currently opens preferences, should open file browser instead
         bpy.ops.screen.userpref_show('INVOKE_DEFAULT')
         return {'FINISHED'}
 
@@ -78,6 +81,7 @@ class M2FORM_OT_create_mesh(Operator):
     bl_label = "Create 3D Mesh"
     bl_description = "Convert depth map to 3D mesh"
     bl_options = {'REGISTER', 'UNDO'}
+    
     def execute(self, context):
         props = context.scene.m2form_props
         obj = props.target_object or context.active_object
