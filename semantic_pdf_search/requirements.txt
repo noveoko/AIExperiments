@@ -1,0 +1,4 @@
+PyMuPDF
+requests
+numpy
+tqdm
