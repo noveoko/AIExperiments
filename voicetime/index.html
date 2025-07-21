@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Controlled Stopwatch</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: manipulation; /* Prevents double-tap zoom on mobile */
+        }
+        .time-display {
+            font-family: 'Roboto Mono', monospace;
+        }
+        /* Simple pulse animation for the listening indicator */
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+        .pulse-animation {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen">
+
+    <div class="w-full max-w-md mx-auto p-4 text-center">
+        <!-- Title -->
+        <h1 class="text-3xl md:text-4xl font-bold text-cyan-400 mb-4">Voice Stopwatch</h1>
+        
+        <!-- Timer Display -->
+        <div id="display" class="time-display text-5xl md:text-7xl lg:text-8xl font-bold bg-gray-800 rounded-lg p-6 my-6 shadow-lg">
+            00:00:00.000
+        </div>
+
+        <!-- Control Buttons -->
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <button id="startStopBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-4 rounded-lg text-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-green-500/50 shadow-md">
+                Start
+            </button>
+            <button id="resetBtn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-4 px-4 rounded-lg text-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-gray-500/50 shadow-md">
+                Reset
+            </button>
+        </div>
+
+        <!-- Status & Info Area -->
+        <div class="bg-gray-800 rounded-lg p-4 space-y-3 shadow-inner">
+            <div id="status" class="text-lg font-medium text-gray-300 h-8 flex items-center justify-center">
+                Initializing...
+            </div>
+            <div class="text-sm text-gray-400">
+                <p>Say <span class="font-semibold text-green-400">"start"</span>, <span class="font-semibold text-red-400">"stop"</span>, or <span class="font-semibold text-yellow-400">"reset"</span>.</p>
+            </div>
+             <div id="transcript" class="text-sm text-gray-500 h-6 italic"></div>
+        </div>
+        
+        <!-- Mic Permission Message -->
+        <div id="micPermission" class="hidden mt-4 p-3 bg-blue-900/50 border border-blue-700 rounded-lg text-blue-200">
+            Please allow microphone access to use voice commands.
+        </div>
+
+    </div>
+
+    <script>
+        // DOM Element References
+        const display = document.getElementById('display');
+        const startStopBtn = document.getElementById('startStopBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const statusEl = document.getElementById('status');
+        const transcriptEl = document.getElementById('transcript');
+        const micPermissionEl = document.getElementById('micPermission');
+
+        // Stopwatch State
+        let timer = null;
+        let startTime = 0;
+        let elapsedTime = 0;
+        let isRunning = false;
+
+        // --- Stopwatch Core Functions ---
+
+        function start() {
+            if (isRunning) return;
+            isRunning = true;
+            startTime = Date.now() - elapsedTime;
+            timer = setInterval(updateDisplay, 10); // Update every 10ms for smooth milliseconds
+            statusEl.textContent = "Running...";
+            startStopBtn.textContent = 'Stop';
+            startStopBtn.classList.remove('bg-green-600', 'hover:bg-green-700', 'focus:ring-green-500/50');
+            startStopBtn.classList.add('bg-red-600', 'hover:bg-red-700', 'focus:ring-red-500/50');
+        }
+
+        function stop() {
+            if (!isRunning) return;
+            isRunning = false;
+            clearInterval(timer);
+            elapsedTime = Date.now() - startTime;
+            statusEl.textContent = "Stopped";
+            startStopBtn.textContent = 'Start';
+            startStopBtn.classList.remove('bg-red-600', 'hover:bg-red-700', 'focus:ring-red-500/50');
+            startStopBtn.classList.add('bg-green-600', 'hover:bg-green-700', 'focus:ring-green-500/50');
+        }
+
+        function reset() {
+            stop(); // Ensure timer is stopped before resetting
+            elapsedTime = 0;
+            display.textContent = "00:00:00.000";
+            statusEl.textContent = "Ready";
+        }
+
+        function updateDisplay() {
+            const currentTime = Date.now();
+            elapsedTime = currentTime - startTime;
+            display.textContent = formatTime(elapsedTime);
+        }
+
+        function formatTime(ms) {
+            const date = new Date(ms);
+            const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+            const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+            const milliseconds = String(date.getUTCMilliseconds()).padStart(3, '0');
+            // We don't need hours for a simple stopwatch, but it's easy to add if needed.
+            // const hours = String(Math.floor(ms / 3600000)).padStart(2, '0');
+            return `${minutes}:${seconds}.${milliseconds}`;
+        }
+
+        // --- Event Listeners for Buttons ---
+        startStopBtn.addEventListener('click', () => {
+            if (isRunning) {
+                stop();
+            } else {
+                start();
+            }
+        });
+
+        resetBtn.addEventListener('click', reset);
+
+
+        // --- Web Speech API for Voice Control ---
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            
+            // Configuration
+            recognition.continuous = true; // Keep listening even after a result
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+
+            recognition.onstart = () => {
+                statusEl.innerHTML = '<span class="pulse-animation">Listening...</span>';
+                micPermissionEl.classList.add('hidden');
+            };
+
+            recognition.onend = () => {
+                // If it stops for any reason (e.g., network error, silence), restart it.
+                // This makes it more robust.
+                if(!recognition.manualStop) {
+                   setTimeout(() => recognition.start(), 100);
+                }
+            };
+
+            recognition.onerror = (event) => {
+                if (event.error === 'not-allowed') {
+                    micPermissionEl.classList.remove('hidden');
+                    statusEl.textContent = 'Voice control disabled.';
+                    recognition.manualStop = true;
+                } else {
+                    console.error('Speech recognition error:', event.error);
+                    statusEl.textContent = 'Voice Error';
+                }
+            };
+
+            recognition.onresult = (event) => {
+                const last = event.results.length - 1;
+                const command = event.results[last][0].transcript.trim().toLowerCase();
+
+                transcriptEl.textContent = `Heard: "${command}"`;
+
+                if (command.includes('start')) {
+                    start();
+                } else if (command.includes('stop')) {
+                    stop();
+                } else if (command.includes('reset')) {
+                    reset();
+                }
+            };
+            
+            // Start listening as soon as the page loads
+            recognition.start();
+
+        } else {
+            // Handle browsers that don't support the Web Speech API
+            statusEl.textContent = "Voice control not supported in this browser.";
+            console.warn("Speech Recognition API not supported.");
+        }
+
+    </script>
+</body>
+</html>
+
