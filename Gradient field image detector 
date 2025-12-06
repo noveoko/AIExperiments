@@ -1,0 +1,251 @@
+"""
+Gradient Field AI Image Detector
+A library for detecting AI-generated images using luminance-gradient PCA analysis.
+
+Based on the principle that real images produce coherent gradient fields tied to 
+physical lighting, while diffusion-generated images show unstable high-frequency 
+structures from the denoising process.
+"""
+
+import numpy as np
+from PIL import Image
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+import cv2
+from typing import Tuple, Dict, Optional
+
+
+class GradientFieldDetector:
+    """
+    Detects AI-generated images by analyzing gradient field coherence.
+    
+    The method works by:
+    1. Converting RGB to luminance (Y channel)
+    2. Computing spatial gradients (dx, dy)
+    3. Flattening gradients into a feature matrix
+    4. Applying PCA to find principal components
+    5. Analyzing variance distribution to detect synthetic patterns
+    """
+    
+    def __init__(self, n_components: int = 10):
+        """
+        Initialize the detector.
+        
+        Args:
+            n_components: Number of PCA components to compute (default: 10)
+        """
+        self.n_components = n_components
+        self.pca = PCA(n_components=n_components)
+        self.scaler = StandardScaler()
+        
+    def rgb_to_luminance(self, image: np.ndarray) -> np.ndarray:
+        """
+        Convert RGB image to luminance using ITU-R BT.601 standard.
+        
+        The formula is: Y = 0.299*R + 0.587*G + 0.114*B
+        These weights reflect human perception (we're most sensitive to green).
+        
+        Args:
+            image: RGB image array of shape (H, W, 3)
+            
+        Returns:
+            Luminance array of shape (H, W)
+        """
+        if len(image.shape) == 2:
+            return image  # Already grayscale
+        
+        # ITU-R BT.601 luminance conversion
+        luminance = (0.299 * image[:, :, 0] + 
+                    0.587 * image[:, :, 1] + 
+                    0.114 * image[:, :, 2])
+        return luminance
+    
+    def compute_gradients(self, luminance: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Compute spatial gradients using Sobel operators.
+        
+        Sobel operators detect edges and gradients by approximating derivatives:
+        - Horizontal gradient (Gx): detects vertical edges
+        - Vertical gradient (Gy): detects horizontal edges
+        
+        Args:
+            luminance: 2D array of luminance values
+            
+        Returns:
+            Tuple of (gradient_x, gradient_y) arrays
+        """
+        # Sobel operator for x-direction (vertical edges)
+        gradient_x = cv2.Sobel(luminance, cv2.CV_64F, 1, 0, ksize=3)
+        
+        # Sobel operator for y-direction (horizontal edges)
+        gradient_y = cv2.Sobel(luminance, cv2.CV_64F, 0, 1, ksize=3)
+        
+        return gradient_x, gradient_y
+    
+    def flatten_gradients(self, gradient_x: np.ndarray, 
+                         gradient_y: np.ndarray) -> np.ndarray:
+        """
+        Flatten gradient fields into a feature matrix.
+        
+        Each pixel contributes 2 features (dx, dy). This creates a matrix where:
+        - Each row represents a pixel
+        - Columns are [gradient_x, gradient_y]
+        
+        Args:
+            gradient_x: Horizontal gradient array
+            gradient_y: Vertical gradient array
+            
+        Returns:
+            Feature matrix of shape (n_pixels, 2)
+        """
+        # Flatten spatial dimensions
+        gx_flat = gradient_x.flatten()
+        gy_flat = gradient_y.flatten()
+        
+        # Stack into feature matrix
+        features = np.column_stack([gx_flat, gy_flat])
+        
+        return features
+    
+    def analyze_image(self, image_path: str) -> Dict[str, any]:
+        """
+        Analyze an image and compute gradient field statistics.
+        
+        Args:
+            image_path: Path to the image file
+            
+        Returns:
+            Dictionary containing:
+                - 'variance_ratio': Ratio of first component variance to total
+                - 'explained_variance': Array of explained variance per component
+                - 'cumulative_variance': Cumulative explained variance
+                - 'gradient_magnitude_mean': Mean gradient magnitude
+                - 'gradient_magnitude_std': Std dev of gradient magnitude
+                - 'high_frequency_ratio': Ratio of high-frequency content
+        """
+        # Load and preprocess image
+        img = Image.open(image_path).convert('RGB')
+        img_array = np.array(img) / 255.0  # Normalize to [0, 1]
+        
+        # Step 1: Convert to luminance
+        luminance = self.rgb_to_luminance(img_array)
+        
+        # Step 2: Compute gradients
+        gradient_x, gradient_y = self.compute_gradients(luminance)
+        
+        # Step 3: Flatten into feature matrix
+        features = self.flatten_gradients(gradient_x, gradient_y)
+        
+        # Remove any NaN or infinite values
+        features = features[~np.isnan(features).any(axis=1)]
+        features = features[~np.isinf(features).any(axis=1)]
+        
+        # Step 4: Standardize features (zero mean, unit variance)
+        features_scaled = self.scaler.fit_transform(features)
+        
+        # Step 5: Apply PCA
+        self.pca.fit(features_scaled)
+        
+        # Compute gradient magnitude statistics
+        gradient_magnitude = np.sqrt(gradient_x**2 + gradient_y**2)
+        
+        # Analyze high-frequency content (large gradients)
+        # High-frequency content is gradient magnitude above 75th percentile
+        threshold = np.percentile(gradient_magnitude, 75)
+        high_freq_ratio = np.mean(gradient_magnitude > threshold)
+        
+        return {
+            'variance_ratio': self.pca.explained_variance_ratio_[0],
+            'explained_variance': self.pca.explained_variance_ratio_,
+            'cumulative_variance': np.cumsum(self.pca.explained_variance_ratio_),
+            'gradient_magnitude_mean': np.mean(gradient_magnitude),
+            'gradient_magnitude_std': np.std(gradient_magnitude),
+            'high_frequency_ratio': high_freq_ratio,
+            'principal_components': self.pca.components_[:3]  # First 3 components
+        }
+    
+    def predict(self, image_path: str, threshold: float = 0.15) -> Tuple[str, float]:
+        """
+        Predict if an image is AI-generated.
+        
+        Real images typically have:
+        - Higher first component variance (more coherent gradients)
+        - Lower high-frequency noise
+        
+        AI-generated images typically have:
+        - Lower first component variance (less coherent gradients)
+        - Higher high-frequency noise from denoising process
+        
+        Args:
+            image_path: Path to the image file
+            threshold: Variance ratio threshold (default: 0.15)
+                      Lower values suggest AI-generated
+            
+        Returns:
+            Tuple of (prediction, confidence_score)
+            prediction: 'real' or 'ai_generated'
+            confidence_score: Value between 0 and 1
+        """
+        stats = self.analyze_image(image_path)
+        
+        variance_ratio = stats['variance_ratio']
+        high_freq_ratio = stats['high_frequency_ratio']
+        
+        # Compute composite score
+        # Real images: high variance_ratio, lower high_freq_ratio
+        # AI images: low variance_ratio, higher high_freq_ratio
+        coherence_score = variance_ratio - (high_freq_ratio * 0.5)
+        
+        if coherence_score > threshold:
+            prediction = 'real'
+            confidence = min(coherence_score / 0.3, 1.0)  # Normalize to [0, 1]
+        else:
+            prediction = 'ai_generated'
+            confidence = min((threshold - coherence_score) / 0.3, 1.0)
+        
+        return prediction, confidence
+    
+    def compare_images(self, real_image_path: str, 
+                      test_image_path: str) -> Dict[str, any]:
+        """
+        Compare gradient field statistics between a known real image and test image.
+        
+        Args:
+            real_image_path: Path to known real image
+            test_image_path: Path to test image
+            
+        Returns:
+            Dictionary with comparison statistics
+        """
+        real_stats = self.analyze_image(real_image_path)
+        test_stats = self.analyze_image(test_image_path)
+        
+        return {
+            'real_variance_ratio': real_stats['variance_ratio'],
+            'test_variance_ratio': test_stats['variance_ratio'],
+            'variance_difference': real_stats['variance_ratio'] - test_stats['variance_ratio'],
+            'real_high_freq': real_stats['high_frequency_ratio'],
+            'test_high_freq': test_stats['high_frequency_ratio'],
+            'high_freq_difference': test_stats['high_frequency_ratio'] - real_stats['high_frequency_ratio']
+        }
+
+
+# Example usage
+if __name__ == "__main__":
+    # Initialize detector
+    detector = GradientFieldDetector(n_components=10)
+    
+    # Analyze a single image
+    print("Analyzing image...")
+    stats = detector.analyze_image('test_image.jpg')
+    print(f"First component variance ratio: {stats['variance_ratio']:.4f}")
+    print(f"High-frequency content ratio: {stats['high_frequency_ratio']:.4f}")
+    
+    # Make prediction
+    prediction, confidence = detector.predict('test_image.jpg')
+    print(f"\nPrediction: {prediction}")
+    print(f"Confidence: {confidence:.2%}")
+    
+    # Compare two images
+    comparison = detector.compare_images('real_image.jpg', 'test_image.jpg')
+    print(f"\nVariance difference: {comparison['variance_difference']:.4f}")
