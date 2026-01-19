@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instant RSVP Reader</title>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --text-color: #ffffff;
+            --accent-color: #ff0000;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Courier New', Courier, monospace; /* Monospace ensures consistent letter width */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* THE DISPLAY CONTAINER
+           This is a rigid flex container.
+        */
+        #display-stage {
+            display: flex;
+            align-items: center; /* Vertically center */
+            justify-content: center; /* Horizontally center */
+            width: 100%;
+            height: 200px;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        /*
+           THE STRATEGY:
+           We use three spans. 
+           1. Left Span: Pushes text to the right.
+           2. Center Span: The red letter (Fixed width).
+           3. Right Span: Pushes text to the left.
+           
+           This ensures the red letter effectively acts as a stationary anchor.
+        */
+
+        .rsvp-line {
+            display: flex;
+            align-items: baseline;
+            font-size: 5rem;
+            font-weight: bold;
+            line-height: 1;
+            width: 100%; /* Spans full width to allow flex-basis to work */
+        }
+
+        .left-side {
+            flex: 1;            /* Takes up exactly 50% of remaining space */
+            text-align: right;  /* Pushes text up against the center */
+            white-space: pre;   /* Preserves spaces */
+        }
+
+        .center-char {
+            color: var(--accent-color);
+            width: 1ch;         /* Exactly the width of 1 character */
+            text-align: center;
+            flex-shrink: 0;     /* Never shrink */
+        }
+
+        .right-side {
+            flex: 1;            /* Takes up exactly 50% of remaining space */
+            text-align: left;   /* Pushes text up against the center */
+            white-space: pre;
+        }
+
+        /* UI CONTROLS STYLING (Minimalist) */
+        .controls {
+            width: 600px;
+            max-width: 90%;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            background: #111;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+
+        textarea {
+            background: #000;
+            color: #ddd;
+            border: 1px solid #444;
+            padding: 10px;
+            height: 80px;
+            resize: none;
+            font-family: sans-serif;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #333;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            flex: 1;
+        }
+
+        button:hover { background: #555; }
+        
+        .wpm-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #888;
+            font-family: sans-serif;
+            font-size: 0.9rem;
+        }
+
+        input[type="number"] {
+            background: #000;
+            border: 1px solid #444;
+            color: white;
+            padding: 5px;
+            width: 60px;
+        }
+
+        .hidden { display: none !important; }
+
+        /* Guide markers (Optional visuals like the image reference) */
+        .marker {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 2px;
+            height: 15px;
+            background: #333;
+        }
+        .marker.top { top: 0; }
+        .marker.bottom { bottom: 0; }
+
+    </style>
+</head>
+<body>
+
+    <div id="display-stage">
+        <div class="marker top"></div>
+        <div class="rsvp-line">
+            <span class="left-side" id="word-left"></span>
+            <span class="center-char" id="word-pivot"></span>
+            <span class="right-side" id="word-right"></span>
+        </div>
+        <div class="marker bottom"></div>
+    </div>
+
+    <div class="controls">
+        <textarea id="input-text" placeholder="Paste text here..."></textarea>
+        
+        <div class="button-row">
+            <div class="wpm-control">
+                <label>WPM:</label>
+                <input type="number" id="input-wpm" value="300" step="50">
+            </div>
+            <button id="btn-toggle">Start Reading</button>
+            <button id="btn-reset">Reset</button>
+        </div>
+        <div style="text-align:center; color:#555; font-size: 12px; font-family: sans-serif;">
+            <span id="progress-indicator">0 / 0 words</span>
+        </div>
+    </div>
+
+    <script>
+        // --- LOGIC ---
+
+        let words = [];
+        let index = 0;
+        let isRunning = false;
+        let intervalId = null;
+        
+        // DOM Elements
+        const elLeft = document.getElementById('word-left');
+        const elPivot = document.getElementById('word-pivot');
+        const elRight = document.getElementById('word-right');
+        
+        const inputText = document.getElementById('input-text');
+        const inputWpm = document.getElementById('input-wpm');
+        const btnToggle = document.getElementById('btn-toggle');
+        const btnReset = document.getElementById('btn-reset');
+        const progressInd = document.getElementById('progress-indicator');
+
+        // 1. Prepare Text
+        function parseText() {
+            const raw = inputText.value.trim();
+            if(!raw) return false;
+            // Split by whitespace to get words
+            words = raw.split(/\s+/);
+            progressInd.textContent = `0 / ${words.length} words`;
+            return true;
+        }
+
+        // 2. The Core Render Function (INSTANT SWAP)
+        function showWord(word) {
+            // Find the "Optimal Recognition Point" (Pivot)
+            // Roughly 35-40% into the word, or middle
+            let pivotIdx = Math.floor((word.length - 1) / 2); 
+            
+            // Adjust slightly for longer words to match human eye fixation preferences (optional fine tuning)
+            if (word.length > 5) {
+                // Keep it simple: Center - 1 for very long words usually feels better
+                // But mathematical center is requested by prompt logic "center letter is red"
+            }
+
+            const leftPart = word.slice(0, pivotIdx);
+            const pivotChar = word.charAt(pivotIdx);
+            const rightPart = word.slice(pivotIdx + 1);
+
+            elLeft.textContent = leftPart;
+            elPivot.textContent = pivotChar;
+            elRight.textContent = rightPart;
+        }
+
+        // 3. The Timer Loop
+        function tick() {
+            if (index >= words.length) {
+                stop();
+                return;
+            }
+            showWord(words[index]);
+            progressInd.textContent = `${index + 1} / ${words.length} words`;
+            index++;
+        }
+
+        function start() {
+            if (words.length === 0) {
+                if (!parseText()) return; // No text
+            }
+            
+            // UI Updates
+            inputText.classList.add('hidden');
+            btnToggle.textContent = "Pause";
+            
+            const wpm = parseInt(inputWpm.value) || 300;
+            const intervalMs = 60000 / wpm;
+
+            isRunning = true;
+            
+            // Execute immediately so there is no delay
+            tick();
+            intervalId = setInterval(tick, intervalMs);
+        }
+
+        function stop() {
+            clearInterval(intervalId);
+            isRunning = false;
+            btnToggle.textContent = index >= words.length ? "Restart" : "Resume";
+        }
+
+        function reset() {
+            stop();
+            index = 0;
+            words = [];
+            elLeft.textContent = "";
+            elPivot.textContent = "Ready";
+            elRight.textContent = "";
+            inputText.classList.remove('hidden');
+            btnToggle.textContent = "Start Reading";
+            progressInd.textContent = "0 / 0 words";
+        }
+
+        // Event Listeners
+        btnToggle.addEventListener('click', () => {
+            if (isRunning) {
+                stop();
+            } else {
+                if(index >= words.length && words.length > 0) {
+                    index = 0; // Wrap around if finished
+                }
+                start();
+            }
+        });
+
+        btnReset.addEventListener('click', reset);
+
+        // Allow WPM change during read
+        inputWpm.addEventListener('change', () => {
+            if (isRunning) {
+                clearInterval(intervalId);
+                const wpm = parseInt(inputWpm.value) || 300;
+                intervalId = setInterval(tick, 60000 / wpm);
+            }
+        });
+
+        // Initial State
+        elPivot.textContent = "Ready";
+
+    </script>
+</body>
+</html>
