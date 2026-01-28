@@ -1,5 +1,11 @@
 """
 Vector store management and intelligent retrieval with quality assessment.
+
+LOCAL-ONLY OPERATION:
+- ChromaDB: Embedded local database (no server required)
+- Ollama: Local embeddings (localhost:11434)
+- All data persists in ~/.rag_system/chroma_db/
+- No external API calls or cloud services
 """
 from typing import List, Dict, Tuple, Optional
 import logging
@@ -13,6 +19,7 @@ from langchain_community.vectorstores import Chroma
 
 from config import (
     DEFAULT_EMBEDDING_MODEL,
+    OLLAMA_BASE_URL,
     CHROMA_DB_DIR,
     TOP_K_RESULTS,
     calculate_quality_score
@@ -23,14 +30,14 @@ logger = logging.getLogger(__name__)
 
 
 class VectorStoreManager:
-    """Manages vector store operations with quality assessment."""
+    """Manages local vector store operations with quality assessment."""
     
     def __init__(self, embedding_model: str = DEFAULT_EMBEDDING_MODEL):
         """
-        Initialize vector store manager.
+        Initialize vector store manager with LOCAL resources only.
         
         Args:
-            embedding_model: Name of Ollama embedding model to use
+            embedding_model: Name of Ollama embedding model to use (runs locally)
         """
         self.embedding_model = embedding_model
         self.embeddings = None
@@ -38,21 +45,23 @@ class VectorStoreManager:
         self._initialize_embeddings()
     
     def _initialize_embeddings(self):
-        """Initialize Ollama embeddings."""
+        """Initialize LOCAL Ollama embeddings (no cloud calls)."""
         try:
             self.embeddings = OllamaEmbeddings(
                 model=self.embedding_model,
-                base_url="http://localhost:11434"
+                base_url=OLLAMA_BASE_URL  # Local Ollama server
             )
-            logger.info(f"Initialized embeddings with model: {self.embedding_model}")
+            logger.info(f"Initialized LOCAL embeddings with model: {self.embedding_model}")
+            logger.info(f"Ollama URL: {OLLAMA_BASE_URL} (local only)")
         except Exception as e:
             logger.error(f"Error initializing embeddings: {e}")
+            logger.error("Make sure Ollama is running locally: ollama serve")
             raise
     
     def create_or_load_vectorstore(self, project_name: str, 
                                    documents: Optional[List[Document]] = None) -> bool:
         """
-        Create a new vector store or load an existing one.
+        Create or load a LOCAL vector store (no cloud storage).
         
         Args:
             project_name: Name of the project (used as collection name)
@@ -64,23 +73,27 @@ class VectorStoreManager:
         try:
             collection_name = self._sanitize_collection_name(project_name)
             
+            # Ensure ChromaDB uses local persistent storage
+            persist_dir = str(CHROMA_DB_DIR)
+            
             if documents:
-                # Create new vectorstore with documents
+                # Create new vectorstore with documents (LOCAL storage)
                 self.vectorstore = Chroma.from_documents(
                     documents=documents,
                     embedding=self.embeddings,
                     collection_name=collection_name,
-                    persist_directory=str(CHROMA_DB_DIR)
+                    persist_directory=persist_dir
                 )
-                logger.info(f"Created vectorstore with {len(documents)} documents")
+                logger.info(f"Created LOCAL vectorstore with {len(documents)} documents")
+                logger.info(f"Storage location: {persist_dir}")
             else:
-                # Load existing vectorstore
+                # Load existing vectorstore (from LOCAL storage)
                 self.vectorstore = Chroma(
                     collection_name=collection_name,
                     embedding_function=self.embeddings,
-                    persist_directory=str(CHROMA_DB_DIR)
+                    persist_directory=persist_dir
                 )
-                logger.info(f"Loaded existing vectorstore: {collection_name}")
+                logger.info(f"Loaded existing LOCAL vectorstore: {collection_name}")
             
             return True
             
