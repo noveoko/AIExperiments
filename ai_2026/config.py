@@ -1,5 +1,13 @@
 """
 Configuration and utility functions for the RAG system.
+
+PRIVACY & LOCAL-ONLY OPERATION:
+- All data stored locally on your machine
+- No cloud services or external APIs
+- ChromaDB: Local embedded database
+- Ollama: Local LLM inference (localhost:11434)
+- No telemetry or tracking
+- Complete data privacy
 """
 import json
 import os
@@ -9,20 +17,30 @@ from dataclasses import dataclass, asdict
 import hashlib
 
 
-# Default configuration
+# ============================================================================
+# LOCAL-ONLY CONFIGURATION
+# ============================================================================
+# All services run locally - no cloud dependencies!
+
+# Ollama Configuration (Local LLM)
+OLLAMA_BASE_URL = "http://localhost:11434"  # Local Ollama server
 DEFAULT_EMBEDDING_MODEL = "nomic-embed-text"  # SOTA CPU-friendly embedding model
 DEFAULT_LLM_MODEL = "llama3.2"  # For query improvement
+
+# Document Processing
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
 TOP_K_RESULTS = 5
+
+# Quality Thresholds
 SIMILARITY_THRESHOLD_HIGH = 0.75
 SIMILARITY_THRESHOLD_MEDIUM = 0.60
 SIMILARITY_THRESHOLD_LOW = 0.45
 
-# File paths
+# Local Storage Paths (Everything stored in ~/.rag_system/)
 CONFIG_DIR = Path.home() / ".rag_system"
-PROJECTS_FILE = CONFIG_DIR / "projects.json"
-CHROMA_DB_DIR = CONFIG_DIR / "chroma_db"
+PROJECTS_FILE = CONFIG_DIR / "projects.json"  # Local project configurations
+CHROMA_DB_DIR = CONFIG_DIR / "chroma_db"      # Local vector database
 
 # Supported file extensions
 SUPPORTED_EXTENSIONS = {
