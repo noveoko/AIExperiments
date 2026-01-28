@@ -1,12 +1,20 @@
 """
 RAG System - Streamlit Application
 
-A powerful Retrieval-Augmented Generation system with:
+A powerful LOCAL-ONLY Retrieval-Augmented Generation system with:
 - Project-based directory management
 - Intelligent document chunking
 - Quality-assessed search results
 - Query improvement using Ollama
 - Easy copy-paste functionality
+
+🔒 PRIVACY & LOCAL-ONLY OPERATION:
+- ALL data stored locally on YOUR machine
+- NO cloud services or external APIs
+- NO telemetry or tracking
+- Complete data privacy and control
+- Ollama runs locally (localhost:11434)
+- ChromaDB embedded database (local storage)
 """
 import streamlit as st
 import os
@@ -22,6 +30,7 @@ from config import (
     get_quality_color,
     DEFAULT_EMBEDDING_MODEL,
     DEFAULT_LLM_MODEL,
+    OLLAMA_BASE_URL,
     SUPPORTED_EXTENSIONS
 )
 from document_processor import DocumentProcessor
@@ -31,8 +40,8 @@ from query_improver import QueryImprover
 
 # Page configuration
 st.set_page_config(
-    page_title="RAG System",
-    page_icon="🔍",
+    page_title="RAG System (Local-Only)",
+    page_icon="🔒",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -102,8 +111,15 @@ def main():
     """Main application function."""
     init_session_state()
     
-    st.title("🔍 RAG System - Intelligent Document Search")
-    st.markdown("*Search your documents with AI-powered relevance scoring*")
+    st.title("🔒 RAG System - Local-Only Document Search")
+    st.markdown("*Search your documents with AI-powered relevance scoring - **100% Private & Local***")
+    
+    # Privacy badge
+    st.markdown("""
+    <div style='padding: 0.5rem; background-color: #d4edda; border-radius: 0.5rem; border-left: 4px solid #28a745; margin-bottom: 1rem;'>
+        <strong>🔒 Privacy First:</strong> All data stays on your machine. No cloud services, no external APIs, no tracking.
+    </div>
+    """, unsafe_allow_html=True)
     
     # Sidebar for navigation
     with st.sidebar:
@@ -116,7 +132,11 @@ def main():
         
         st.markdown("---")
         st.markdown("### 🚀 Quick Info")
-        st.info(f"**Embedding Model:** {DEFAULT_EMBEDDING_MODEL}\n\n**LLM Model:** {DEFAULT_LLM_MODEL}")
+        st.info(f"**Embedding Model:** {DEFAULT_EMBEDDING_MODEL}\n\n**LLM Model:** {DEFAULT_LLM_MODEL}\n\n**Ollama:** {OLLAMA_BASE_URL}")
+        
+        st.markdown("---")
+        st.markdown("### 🔒 Local-Only")
+        st.success("✓ All data on your machine\n\n✓ No cloud services\n\n✓ Complete privacy")
     
     # Route to appropriate page
     if "Home" in page:
