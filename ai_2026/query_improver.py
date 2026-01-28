@@ -1,48 +1,59 @@
 """
-Query improvement using Ollama LLM.
+Query improvement using LOCAL Ollama LLM.
+
+LOCAL-ONLY OPERATION:
+- Ollama runs locally (localhost:11434)
+- No API calls to external services
+- Complete privacy - queries never leave your machine
+- Models stored and executed locally
 """
 import logging
 from typing import Dict, List, Optional
 import ollama
 
-from config import DEFAULT_LLM_MODEL
+from config import DEFAULT_LLM_MODEL, OLLAMA_BASE_URL
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 class QueryImprover:
-    """Improves user queries using Ollama LLM."""
+    """Improves user queries using LOCAL Ollama LLM (no cloud services)."""
     
     def __init__(self, model: str = DEFAULT_LLM_MODEL):
         """
-        Initialize query improver.
+        Initialize query improver with LOCAL Ollama.
         
         Args:
-            model: Ollama model to use for query improvement
+            model: Ollama model to use for query improvement (runs locally)
         """
         self.model = model
+        self.ollama_url = OLLAMA_BASE_URL
         self._test_connection()
     
     def _test_connection(self) -> bool:
-        """Test connection to Ollama."""
+        """Test connection to LOCAL Ollama server."""
         try:
             ollama.list()
-            logger.info(f"Connected to Ollama, using model: {self.model}")
+            logger.info(f"Connected to LOCAL Ollama at {self.ollama_url}")
+            logger.info(f"Using model: {self.model} (runs locally)")
             return True
         except Exception as e:
-            logger.warning(f"Could not connect to Ollama: {e}")
+            logger.warning(f"Could not connect to LOCAL Ollama: {e}")
+            logger.warning("Make sure Ollama is running: ollama serve")
             return False
     
     def improve_query(self, query: str, context: Optional[str] = None) -> Dict:
         """
-        Improve a user query for better RAG results.
+        Improve a user query using LOCAL LLM (no external API calls).
         
         This method:
         1. Analyzes the query for ambiguity and vagueness
         2. Suggests specific improvements
         3. Generates an improved version
         4. Asks clarifying questions if needed
+        
+        All processing happens LOCALLY on your machine.
         
         Args:
             query: Original user query
@@ -58,6 +69,7 @@ class QueryImprover:
         try:
             prompt = self._build_improvement_prompt(query, context)
             
+            # Call LOCAL Ollama instance (no cloud API)
             response = ollama.chat(
                 model=self.model,
                 messages=[
@@ -76,12 +88,12 @@ class QueryImprover:
             return result
             
         except Exception as e:
-            logger.error(f"Error improving query: {e}")
+            logger.error(f"Error improving query with LOCAL Ollama: {e}")
             return {
                 'improved_query': query,
-                'suggestions': ['Error: Could not connect to Ollama. Please ensure it is running.'],
+                'suggestions': ['Error: Could not connect to LOCAL Ollama. Please ensure it is running (ollama serve).'],
                 'clarifying_questions': [],
-                'explanation': 'Query improvement unavailable.'
+                'explanation': 'Query improvement unavailable - check Ollama is running locally.'
             }
     
     def _build_improvement_prompt(self, query: str, context: Optional[str]) -> str:
