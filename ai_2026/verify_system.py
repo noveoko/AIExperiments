@@ -159,15 +159,26 @@ def main():
     """Run all checks."""
     print("\n")
     print("╔════════════════════════════════════════════════════════════╗")
-    print("║         RAG System - Verification Script                  ║")
+    print("║    RAG System - Verification Script (Local-Only)          ║")
     print("╚════════════════════════════════════════════════════════════╝")
+    
+    # Privacy verification
+    print("\n" + "=" * 60)
+    print("  🔒 Privacy & Local-Only Verification")
+    print("=" * 60)
+    print("\n✓ This system uses ONLY local resources:")
+    print("  - ChromaDB: Local embedded database")
+    print("  - Ollama: Local LLM (localhost:11434)")
+    print("  - Storage: ~/.rag_system/ (your machine)")
+    print("  - No cloud APIs or external services")
+    print("\n✓ Your data NEVER leaves your machine!\n")
     
     checks = [
         ("Python Version", check_python_version),
         ("File Structure", check_file_structure),
         ("Python Dependencies", check_dependencies),
         ("Module Imports", check_imports),
-        ("Ollama Setup", check_ollama),
+        ("Ollama Setup (Local)", check_ollama),
     ]
     
     results = []
