@@ -1,0 +1,7 @@
+# Core dependencies
+streamlit>=1.28.0
+requests>=2.31.0
+
+# Optional: For enhanced features
+# python-dotenv>=1.0.0  # If you want to use .env files
+
