@@ -1,0 +1,550 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "ollama>=0.5",
+# ]
+# ///
+
+"""
+Dual-Model Prompt Optimization Loop
+=====================================
+Architecture:
+  - Optimizer : qwen2.5:14b  — the "Architect"
+  - Target    : gemma-4-e2b-it — the "Worker"
+  - Evaluator : PolishValidator — deterministic Python, regex-based
+
+Run with:
+  uv run opt_script.py
+"""
+
+import re
+import ollama
+from dataclasses import dataclass, field
+
+# ─────────────────────────────────────────────
+# CONFIGURATION
+# ─────────────────────────────────────────────
+
+OPTIMIZER_MODEL = "qwen2.5:14b"
+TARGET_MODEL    = "gemma-4-e2b-it"
+MAX_ITERATIONS  = 5
+MAX_PROMPT_WORDS = 100   # constraint we hand to the Optimizer
+
+# ─────────────────────────────────────────────
+# TEST CASES
+# Input string → list of expected extracted names
+# Covers: aliases, maiden names, multi-child lists,
+#         Polish diacritics (ą ć ę ł ń ó ś ź ż)
+# ─────────────────────────────────────────────
+
+TEST_CASES: dict[str, list[str]] = {
+    # Alias in parentheses — must stay glued to the name
+    "wdowiec, żona Uksenia (Oksenia) z d. Steczuk": [
+        "Uksenia (Oksenia) z d. Steczuk"
+    ],
+    # Comma-separated children — each is its own name
+    "dzieci Jakub, Filip, Antoni Dymitr": [
+        "Jakub", "Filip", "Antoni Dymitr"
+    ],
+    # Two names separated by a comma — alias must stay intact
+    "Wirka (Wiera), Anastazja": [
+        "Wirka (Wiera)", "Anastazja"
+    ],
+    # Heavy Polish diacritics — tests ł, ó, ą, ę preservation
+    "mąż Józef Łukasiewicz, żona Małgorzata z d. Wróblewska": [
+        "Józef Łukasiewicz", "Małgorzata z d. Wróblewska"
+    ],
+    # Mixed alias + diacritics (ś, ó)
+    "córka Zofia (Zośka), syn Władysław": [
+        "Zofia (Zośka)", "Władysław"
+    ],
+}
+
+
+# ─────────────────────────────────────────────
+# VALIDATION PRIMITIVES
+# ─────────────────────────────────────────────
+
+@dataclass
+class CheckResult:
+    """
+    Result of one atomic validation rule.
+
+    Attributes
+    ----------
+    name   : short rule identifier shown in reports
+    passed : True if the rule was satisfied
+    detail : human-readable explanation (esp. on failure)
+    """
+    name:   str
+    passed: bool
+    detail: str
+
+
+@dataclass
+class ValidationResult:
+    """
+    Aggregate result for one (input, target_output) pair.
+
+    Attributes
+    ----------
+    passed          : True only when every CheckResult passed
+    checks          : ordered list of individual CheckResults
+    extracted_lines : the cleaned lines the validator parsed from output
+    """
+    passed:          bool
+    checks:          list[CheckResult] = field(default_factory=list)
+    extracted_lines: list[str]         = field(default_factory=list)
+
+    def failure_summary(self) -> str:
+        """Return a compact multi-line string of every failed check."""
+        failed = [c for c in self.checks if not c.passed]
+        if not failed:
+            return "  (all checks passed)"
+        return "\n".join(f"  ✗ [{c.name}] {c.detail}" for c in failed)
+
+
+# ─────────────────────────────────────────────
+# POLISH VALIDATOR
+# ─────────────────────────────────────────────
+
+class PolishValidator:
+    """
+    Deterministic, regex-driven evaluator for Polish genealogical name extraction.
+
+    Checks (in order)
+    -----------------
+    1. line_count          — number of extracted names == number expected
+    2. all_names_present   — every expected name substring found in some line
+    3. polish_chars        — diacritics (ą ć ę ł ń ó ś ź ż …) not dropped
+    4. no_ascii_sub        — diacritics not silently replaced with ASCII look-alikes
+    5. alias_integrity     — "Name (Alias)" patterns never split across two lines
+    6. maiden_name_intact  — "z d. Surname" stays on the same line as the given name
+    7. no_label_leakage    — relational words (żona, mąż, …) absent from output
+    """
+
+    # ── compiled regex patterns ──────────────────────────────────────────
+
+    # All Polish diacritic characters (lower + upper)
+    POLISH_CHAR_RE = re.compile(r'[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]')
+
+    # "Name (Alias)" — one or more word-chars, a space, then a parenthetical
+    # e.g. "Wirka (Wiera)" or "Uksenia (Oksenia)"
+    ALIAS_RE = re.compile(r'\b\w[\w-]*\s+\([^)]+\)')
+
+    # Maiden-name marker:  "z d. Surname"
+    # Handles optional non-breaking space and trailing multi-word surnames
+    MAIDEN_RE = re.compile(r'\bz\s+d\.\s+\w[\w-]*')
+
+    # Relational / role words that belong to the *context*, not the name itself
+    # The model should strip these; their presence signals label leakage.
+    LABEL_RE = re.compile(
+        r'\b(żona|mąż|wdowiec|wdowa|dzieci|syn|córka|ojciec|matka|córki|synowie)\b',
+        re.IGNORECASE
+    )
+
+    # Polish diacritic → most common ASCII substitute
+    # Used to detect "silent degradation" (e.g. Małgorzata → Malgorzata)
+    _ASCII_MAP: dict[str, str] = {
+        'ą': 'a', 'ć': 'c', 'ę': 'e', 'ł': 'l', 'ń': 'n',
+        'ó': 'o', 'ś': 's', 'ź': 'z', 'ż': 'z',
+        'Ą': 'A', 'Ć': 'C', 'Ę': 'E', 'Ł': 'L', 'Ń': 'N',
+        'Ó': 'O', 'Ś': 'S', 'Ź': 'Z', 'Ż': 'Z',
+    }
+
+    # ── helpers ──────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _parse_lines(raw_output: str) -> list[str]:
+        """
+        Strip bullet/markdown decoration and return non-empty lines.
+
+        Removes leading characters: - * • numbers+dot/paren
+        e.g.  "- Józef Łukasiewicz"  →  "Józef Łukasiewicz"
+              "1. Małgorzata z d. …"  →  "Małgorzata z d. …"
+        """
+        lines = []
+        for raw_line in raw_output.splitlines():
+            # Remove common list prefixes, then strip whitespace
+            cleaned = re.sub(r'^[\s\-\*•]+', '', raw_line)
+            cleaned = re.sub(r'^\d+[\.\)]\s*', '', cleaned).strip()
+            if cleaned:
+                lines.append(cleaned)
+        return lines
+
+    def _ascii_degrade(self, text: str) -> str:
+        """Replace every Polish diacritic with its ASCII look-alike."""
+        return ''.join(self._ASCII_MAP.get(ch, ch) for ch in text)
+
+    # ── individual checks ────────────────────────────────────────────────
+
+    def _check_line_count(
+        self, lines: list[str], expected: list[str]
+    ) -> CheckResult:
+        """
+        The number of output lines must exactly match the expected name count.
+
+        Why it matters
+        --------------
+        A model that returns 4 lines for a 3-name list has either hallucinated
+        a name or failed to merge a compound name (e.g. split "Antoni Dymitr"
+        into two lines).
+        """
+        ok = len(lines) == len(expected)
+        detail = (
+            f"OK — {len(lines)} lines" if ok
+            else f"Got {len(lines)} lines, expected {len(expected)}: {lines}"
+        )
+        return CheckResult("line_count", ok, detail)
+
+    def _check_all_present(
+        self, lines: list[str], expected: list[str]
+    ) -> CheckResult:
+        """
+        Every expected name must appear as a substring of some output line.
+
+        Substring matching (rather than exact equality) tolerates minor
+        surrounding whitespace or punctuation without masking real failures.
+        """
+        missing = [
+            exp for exp in expected
+            if not any(exp in line for line in lines)
+        ]
+        ok = not missing
+        detail = (
+            "OK — all expected names found"
+            if ok else f"Missing: {missing}"
+        )
+        return CheckResult("all_names_present", ok, detail)
+
+    def _check_polish_chars(
+        self, lines: list[str], expected: list[str]
+    ) -> CheckResult:
+        """
+        Every Polish diacritic present in the expected names must appear
+        somewhere in the corresponding extracted output.
+
+        Algorithm (step-by-step)
+        ------------------------
+        1. For each expected name, collect the set of unique Polish chars:
+               expected_chars = {'ą', 'ł', 'ó'} for "Małgorzata Łukasiewicz"
+        2. Collect the same set across *all* extracted lines combined:
+               output_chars  = set of Polish chars in the full output
+        3. The difference (expected_chars - output_chars) is the set of
+           diacritics that were dropped.
+        4. If the difference is non-empty → fail.
+
+        Note: we compare against the *full* output rather than line-by-line
+        because the model might have shuffled order while preserving chars.
+        A stricter per-line check would produce false positives in that case.
+        """
+        expected_polish = set(
+            ch
+            for name in expected
+            for ch in self.POLISH_CHAR_RE.findall(name)
+        )
+        if not expected_polish:
+            return CheckResult(
+                "polish_chars", True,
+                "OK — no Polish diacritics in expected output (skipped)"
+            )
+
+        output_polish = set(
+            ch
+            for line in lines
+            for ch in self.POLISH_CHAR_RE.findall(line)
+        )
+        dropped = expected_polish - output_polish
+        ok = not dropped
+        detail = (
+            f"OK — diacritics preserved: {sorted(expected_polish)}"
+            if ok else
+            f"DROPPED diacritics: {sorted(dropped)} "
+            f"(expected {sorted(expected_polish)}, found {sorted(output_polish)})"
+        )
+        return CheckResult("polish_chars", ok, detail)
+
+    def _check_no_ascii_substitution(
+        self, lines: list[str], expected: list[str]
+    ) -> CheckResult:
+        """
+        Detect silent ASCII substitution: the model outputs "Malgorzata" instead
+        of "Małgorzata".
+
+        Algorithm
+        ---------
+        For each expected name that contains ≥1 Polish char:
+          a. Build its ASCII-degraded version:
+                "Małgorzata" → "Malgorzata"
+          b. Check whether the degraded form appears in *any* output line
+             while the proper form does NOT.
+          c. If both conditions hold → the model silently stripped the diacritics.
+
+        Why both conditions?
+        --------------------
+        "Malgorzata" might legitimately appear if that is a separate name
+        mentioned alongside "Małgorzata". Requiring that the proper form is
+        absent prevents false positives in pathological cases.
+        """
+        substitutions_found = []
+        for exp in expected:
+            if not self.POLISH_CHAR_RE.search(exp):
+                continue
+            degraded = self._ascii_degrade(exp)
+            for line in lines:
+                degraded_match = degraded.lower() in line.lower()
+                proper_match   = exp.lower()      in line.lower()
+                if degraded_match and not proper_match:
+                    substitutions_found.append(
+                        f"'{exp}' → '{degraded}' (in line: \"{line}\")"
+                    )
+
+        ok = not substitutions_found
+        detail = (
+            "OK — no ASCII substitutions detected"
+            if ok else
+            "ASCII substitution(s): " + "; ".join(substitutions_found)
+        )
+        return CheckResult("no_ascii_sub", ok, detail)
+
+    def _check_alias_integrity(
+        self, lines: list[str], expected: list[str]
+    ) -> CheckResult:
+        """
+        Parenthetical aliases must NOT be split onto a separate line.
+
+        Pattern matched: word(s) + space + (anything inside parens)
+            e.g.  "Wirka (Wiera)"   ✓ on one line
+                  line 1: "Wirka"
+                  line 2: "(Wiera)"  ✗ split
+
+        Detection method
+        ----------------
+        1. Find all ALIAS_RE matches across the *expected* names.
+        2. For each such alias, check that the entire pattern appears on
+           a single output line.
+        3. Also check that no output line contains a "naked" parenthetical
+           (starts with or contains only a parenthetical) that should have
+           been attached to the previous line.
+
+        The ALIAS_RE pattern:  r'\b\w[\w-]*\s+\([^)]+\)'
+          \b        — word boundary (prevents mid-word matches)
+          \w[\w-]*  — name token (supports hyphenated surnames)
+          \s+       — one or more spaces between name and alias
+          \([^)]+\) — parenthetical, no nested parens
+        """
+        split_aliases = []
+
+        # Check 1: every alias in the expected list stays on one output line
+        for exp in expected:
+            for alias_match in self.ALIAS_RE.finditer(exp):
+                alias_str = alias_match.group()
+                if not any(alias_str in line for line in lines):
+                    split_aliases.append(
+                        f"Alias pattern \"{alias_str}\" not found intact in output"
+                    )
+
+        # Check 2: no output line is a "naked" parenthetical
+        # i.e. a line that is *only* something like "(Wiera)" or "- (Oksenia)"
+        NAKED_PAREN_RE = re.compile(r'^\([^)]+\)$')
+        for line in lines:
+            if NAKED_PAREN_RE.match(line):
+                split_aliases.append(
+                    f"Naked parenthetical on its own line: \"{line}\""
+                )
+
+        ok = not split_aliases
+        detail = (
+            "OK — all aliases intact"
+            if ok else "; ".join(split_aliases)
+        )
+        return CheckResult("alias_integrity", ok, detail)
+
+    def _check_maiden_name_intact(
+        self, lines: list[str], expected: list[str]
+    ) -> CheckResult:
+        """
+        "z d. Surname" (Polish maiden-name marker) must remain on the
+        same line as the given name it belongs to.
+
+        Pattern (MAIDEN_RE):  r'\bz\s+d\.\s+\w[\w-]*'
+          \b          — word boundary
+          z\s+d\.     — literal "z d." with flexible internal spacing
+          \s+\w[\w-]* — the maiden surname, supports hyphenation
+
+        Failure cases caught
+        --------------------
+        a) "z d. Steczuk" ends up on a line by itself.
+        b) The full expected compound "Uksenia (Oksenia) z d. Steczuk"
+           is not found as a unit in any output line.
+        """
+        issues = []
+
+        # Check every expected name that contains the maiden-name marker
+        for exp in expected:
+            if not self.MAIDEN_RE.search(exp):
+                continue
+            if not any(exp in line for line in lines):
+                issues.append(
+                    f"Maiden name compound \"{exp}\" not found intact"
+                )
+
+        # Check no output line is *only* a maiden-name fragment
+        for line in lines:
+            # A line that matches MAIDEN_RE but has nothing else is suspicious
+            stripped = line.strip()
+            if self.MAIDEN_RE.fullmatch(stripped):
+                issues.append(
+                    f"Maiden-name fragment on its own line: \"{line}\""
+                )
+
+        ok = not issues
+        detail = (
+            "OK — maiden names intact"
+            if ok else "; ".join(issues)
+        )
+        return CheckResult("maiden_name_intact", ok, detail)
+
+    def _check_no_label_leakage(self, lines: list[str]) -> CheckResult:
+        """
+        Relational / role words must not appear in the extracted output.
+
+        The model should strip context words like "żona" (wife), "mąż"
+        (husband), "dzieci" (children), "syn" (son), "córka" (daughter),
+        "wdowiec" (widower) from the input before outputting names.
+
+        If these words bleed into the output it means the model is copying
+        the raw input line rather than isolating the names.
+
+        Pattern (LABEL_RE, IGNORECASE):
+          \b(żona|mąż|wdowiec|wdowa|dzieci|syn|córka|ojciec|matka|…)\b
+        """
+        leaks = [
+            f"\"{line}\" contains relational word"
+            for line in lines
+            if self.LABEL_RE.search(line)
+        ]
+        ok = not leaks
+        detail = (
+            "OK — no relational labels in output"
+            if ok else "; ".join(leaks)
+        )
+        return CheckResult("no_label_leakage", ok, detail)
+
+    # ── public entry point ────────────────────────────────────────────────
+
+    def validate(self, raw_output: str, expected: list[str]) -> ValidationResult:
+        """
+        Run all checks against a single (raw_output, expected) pair.
+
+        Parameters
+        ----------
+        raw_output : the raw string returned by the Target model
+        expected   : the list of correctly extracted names for this input
+
+        Returns
+        -------
+        ValidationResult with .passed and a full .checks breakdown
+        """
+        lines = self._parse_lines(raw_output)
+
+        checks = [
+            self._check_line_count(lines, expected),
+            self._check_all_present(lines, expected),
+            self._check_polish_chars(lines, expected),
+            self._check_no_ascii_substitution(lines, expected),
+            self._check_alias_integrity(lines, expected),
+            self._check_maiden_name_intact(lines, expected),
+            self._check_no_label_leakage(lines),
+        ]
+
+        return ValidationResult(
+            passed=all(c.passed for c in checks),
+            checks=checks,
+            extracted_lines=lines,
+        )
+
+
+# ─────────────────────────────────────────────
+# OPTIMIZATION LOOP
+# ─────────────────────────────────────────────
+
+def run_optimization_loop(seed_prompt: str) -> str:
+    """
+    Iteratively improve `seed_prompt` using the 14B Optimizer model.
+
+    Workflow per iteration
+    ----------------------
+    1. Send current_prompt + each test-case input to the Target (2B) model.
+    2. Run PolishValidator on each response.
+    3. If all cases pass → return the winning prompt.
+    4. Otherwise, build a structured error_report and send it to the
+       Optimizer (14B) model to rewrite the prompt.
+    5. Repeat up to MAX_ITERATIONS times.
+
+    Parameters
+    ----------
+    seed_prompt : initial (likely naive) prompt to start from
+
+    Returns
+    -------
+    The best prompt found, or a failure message.
+    """
+    validator     = PolishValidator()
+    current_prompt = seed_prompt
+
+    for iteration in range(1, MAX_ITERATIONS + 1):
+        print(f"\n{'='*60}")
+        print(f"  ITERATION {iteration}/{MAX_ITERATIONS}")
+        print(f"{'='*60}")
+        print(f"  Prompt: {current_prompt}\n")
+
+        all_passed  = True
+        error_parts: list[str] = []
+
+        # ── Step 1: test the current prompt on every case ──────────────
+        for inp, expected in TEST_CASES.items():
+            raw = ollama.generate(
+                model=TARGET_MODEL,
+                prompt=f"{current_prompt}\nInput: {inp}"
+            )["response"]
+
+            result = validator.validate(raw, expected)
+
+            status = "✓ PASS" if result.passed else "✗ FAIL"
+            print(f"  [{status}] {inp!r}")
+
+            if not result.passed:
+                all_passed = False
+                # Build a rich, structured error block for the Optimizer
+                error_parts.append(
+                    f"Input    : {inp}\n"
+                    f"Expected : {expected}\n"
+                    f"Got lines: {result.extracted_lines}\n"
+                    f"Failures :\n{result.failure_summary()}"
+                )
+
+        # ── Step 2: success check ──────────────────────────────────────
+        if all_passed:
+            print("\n🎉 SUCCESS — all validation checks passed.")
+            print(f"   Final prompt: {current_prompt}")
+            return current_prompt
+
+        # ── Step 3: ask the 14B Optimizer to rewrite the prompt ────────
+        print(f"\n  {len(error_parts)} case(s) failed. Calling Optimizer…")
+
+        error_report = "\n\n".join(error_parts)
+
+        meta_prompt = f"""You are an expert Prompt Engineer specialising in Polish historical
+genealogical records. A small 2B language model is failing to correctly
+extract personal names from record fragments. Your job is to rewrite the
+extraction prompt so the 2B model passes every test.
+
+══ CURRENT (FAILING) PROMPT ══
+{current_prompt}
+
+══ VALIDATION FAILURES ══
+{error_report}
+
+══ KNOWN FAILURE PATTERNS ══
+- Model splits "Name (Alias)" across two lines instead of keeping the
