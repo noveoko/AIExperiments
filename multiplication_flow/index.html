@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Multiplication Mastery</title>
+    <style>
+        :root {
+            --bg: #000000;
+            --text: #ffffff;
+            --blue: #3498db;
+            --red: #e74c3c;
+        }
+        
+        * { box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Prevents bounce on mobile */
+        }
+
+        /* Setup Screen */
+        #setup-area {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: var(--bg);
+            z-index: 10;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .settings {
+            margin: 20px 0;
+            font-size: 1.2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .settings input {
+            background: #222;
+            color: white;
+            border: 1px solid #444;
+            padding: 10px;
+            font-size: 1.2rem;
+            border-radius: 8px;
+            width: 80px;
+            text-align: center;
+            outline: none;
+        }
+
+        button {
+            background-color: var(--blue);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        
+        button:active { opacity: 0.8; }
+
+        /* Game Screen */
+        #game-area {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            opacity: 0; 
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .fade-in { opacity: 1 !important; }
+
+        #stats-bar {
+            position: absolute;
+            top: 10px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #666;
+            pointer-events: none;
+        }
+
+        #problem-container {
+            height: 50vh;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 2vh;
+        }
+
+        #question-text {
+            font-size: 20vmin;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        #answer-container {
+            height: 50vh;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding-top: 2vh;
+            cursor: text;
+        }
+
+        /* Invisible Input */
+        #answer-input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--blue);
+            font-size: 20vmin;
+            font-weight: bold;
+            text-align: center;
+            width: 100%;
+            line-height: 1;
+            caret-color: var(--blue);
+            /* Remove arrows in number fields */
+            -moz-appearance: textfield;
+        }
+
+        #answer-input::-webkit-outer-spin-button,
+        #answer-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        #answer-input.wrong {
+            color: var(--red);
+        }
+
+        /* Completion Screen */
+        #completion-screen {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: var(--bg);
+            z-index: 20;
+            text-align: center;
+        }
+        #completion-screen h2 { color: var(--blue); font-size: 3rem; }
+    </style>
+</head>
+<body>
+
+<div id="setup-area">
+    <h1 style="color: var(--blue);">Multiplication Mastery</h1>
+    <p style="color: #888; max-width: 400px;">
+        Answer correctly and under the target time to remove a problem from the loop. Slow or wrong answers stay in the pool.
+    </p>
+    <div class="settings">
+        <label>
+            Target Time (sec): 
+            <input type="number" id="target-time" value="4" min="1" max="10">
+        </label>
+        <label>
+            Max Multiplier: 
+            <input type="number" id="max-table" value="12" min="2" max="20">
+        </label>
+    </div>
+    <button onclick="startGame()">Start Learning</button>
+</div>
+
+<div id="game-area">
+    <div id="stats-bar">Remaining: <span id="stat-remaining"></span></div>
+    
+    <div id="problem-container">
+        <span id="question-text"></span>
+    </div>
+    
+    <div id="answer-container" onclick="document.getElementById('answer-input').focus()">
+        <input type="number" id="answer-input" pattern="[0-9]*" inputmode="numeric" autocomplete="off">
+    </div>
+</div>
+
+<div id="completion-screen">
+    <h2>Mastered!</h2>
+    <button onclick="location.reload()">Practice Again</button>
+</div>
+
+<script>
+    let pool = [];
+    let currentQuestion = null;
+    let startTime = 0;
+    let targetTimeMs = 4000;
+    let isAnimating = false;
+
+    const domSetup = document.getElementById('setup-area');
+    const domGame = document.getElementById('game-area');
+    const domCompletion = document.getElementById('completion-screen');
+    const domQText = document.getElementById('question-text');
+    const domInput = document.getElementById('answer-input');
+    const domRemaining = document.getElementById('stat-remaining');
+
+    function startGame() {
+        const maxNum = parseInt(document.getElementById('max-table').value) || 12;
+        targetTimeMs = (parseFloat(document.getElementById('target-time').value) || 4) * 1000;
+        
+        // Generate combinations
+        pool = [];
+        for (let i = 1; i <= maxNum; i++) {
+            for (let j = 1; j <= maxNum; j++) {
+                pool.push({ a: i, b: j });
+            }
+        }
+        
+        domSetup.style.display = 'none';
+        domGame.style.display = 'flex';
+        
+        serveNextQuestion();
+    }
+
+    function serveNextQuestion() {
+        if (pool.length === 0) {
+            domGame.style.display = 'none';
+            domCompletion.style.display = 'flex';
+            return;
+        }
+
+        // Pick a random question from the pool
+        const randomIndex = Math.floor(Math.random() * pool.length);
+        currentQuestion = pool[randomIndex];
+        currentQuestion.index = randomIndex; 
+
+        domRemaining.innerText = pool.length;
+        domQText.innerText = `${currentQuestion.a} × ${currentQuestion.b}`;
+        
+        domInput.value = '';
+        domInput.classList.remove('wrong');
+        domGame.classList.add('fade-in');
+        domInput.focus();
+        
+        startTime = Date.now();
+        isAnimating = false;
+    }
+
+    function evaluateAnswer(userString) {
+        if (isAnimating) return;
+        
+        const correctAnswer = currentQuestion.a * currentQuestion.b;
+        const correctString = correctAnswer.toString();
+        
+        // If the user hasn't typed enough digits yet, keep waiting
+        if (userString.length < correctString.length) return;
+
+        isAnimating = true;
+        const timeTakenMs = Date.now() - startTime;
+        const isCorrect = userString === correctString;
+
+        if (isCorrect) {
+            // Mastered only if correct AND under target time
+            if (timeTakenMs <= targetTimeMs) {
+                pool.splice(currentQuestion.index, 1);
+            }
+            transitionToNext(150); // Fast transition for correct answers
+        } else {
+            // Wrong: turn red and stay in pool
+            domInput.classList.add('wrong');
+            transitionToNext(600); // Wait longer so they see the red error
+        }
+    }
+
+    // Auto-evaluate as the user types
+    domInput.addEventListener('input', function() {
+        evaluateAnswer(this.value);
+    });
+
+    // Fallback evaluation if user hits Enter early (e.g. they think 12x12 = 9)
+    domInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && this.value !== '') {
+            // Force evaluation by passing the current string, bypassing the length check lock
+            isAnimating = false; 
+            const correctAnswer = currentQuestion.a * currentQuestion.b;
+            const isCorrect = this.value === correctAnswer.toString();
+            
+            isAnimating = true;
+            if (isCorrect && (Date.now() - startTime) <= targetTimeMs) {
+                pool.splice(currentQuestion.index, 1);
+            }
+            if (!isCorrect) {
+                domInput.classList.add('wrong');
+            }
+            transitionToNext(isCorrect ? 150 : 600);
+        }
+    });
+
+    function transitionToNext(delay) {
+        setTimeout(() => {
+            domGame.classList.remove('fade-in'); // Trigger fade out
+            setTimeout(serveNextQuestion, 300); // Wait for fade out to finish (0.3s) before serving next
+        }, delay);
+    }
+    
+    // Ensure input stays focused if user taps anywhere on the game area
+    document.addEventListener('click', (e) => {
+        if (domGame.style.display === 'flex' && !isAnimating) {
+            domInput.focus();
+        }
+    });
+</script>
+
+</body>
+</html>
