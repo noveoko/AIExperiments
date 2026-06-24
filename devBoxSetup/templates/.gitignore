@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.python-version.local
+
+# Package managers
+.uv/
+poetry.toml.local
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Databricks
+.databricks/
+.databrickscfg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+test-results.xml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Spark / local data
+spark-warehouse/
+metastore_db/
+derby.log
+*.parquet.tmp/

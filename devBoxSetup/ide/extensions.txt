@@ -1,0 +1,12 @@
+# Install with: code --install-extension <id>  (or cursor --install-extension <id>)
+# One extension ID per line. Lines starting with # are ignored.
+
+ms-vscode-remote.remote-wsl
+ms-python.python
+ms-python.vscode-pylance
+charliermarsh.ruff
+databricks.databricks
+ms-azure-devops.azure-pipelines
+eamodio.gitlens
+redhat.vscode-yaml
+ms-vscode.powershell

@@ -1,0 +1,124 @@
+{
+  "steps": [
+    {
+      "id": "identity",
+      "title": "Identity & Azure DevOps",
+      "description": "Corporate org details — stored locally only",
+      "fields": [
+        { "key": "profile_name", "label": "Profile name", "type": "text", "required": true, "placeholder": "corp-devbox-a" },
+        { "key": "git_user_name", "label": "Git user.name", "type": "text", "required": true },
+        { "key": "git_user_email", "label": "Git user.email", "type": "email", "required": true },
+        { "key": "ado_org", "label": "Azure DevOps org", "type": "text", "required": true, "placeholder": "contoso", "hint": "Short name from dev.azure.com/<org>" },
+        { "key": "ado_project", "label": "Azure DevOps project", "type": "text", "required": true },
+        { "key": "ado_auth_method", "label": "Git auth method", "type": "select", "options": [
+          { "value": "gcm", "label": "HTTPS + Git Credential Manager (SSO)" },
+          { "value": "ssh", "label": "SSH key" },
+          { "value": "pat", "label": "Personal Access Token" }
+        ]},
+        { "key": "ado_pat", "label": "Azure DevOps PAT", "type": "secret", "showWhen": { "ado_auth_method": "pat" }, "hint": "Stored in secrets.local.json only" }
+      ]
+    },
+    {
+      "id": "host",
+      "title": "DevBox & WSL",
+      "description": "Windows host and WSL configuration",
+      "fields": [
+        { "key": "environment", "label": "Environment", "type": "select", "options": [
+          { "value": "corporate_devbox", "label": "Corporate Microsoft DevBox" },
+          { "value": "local_wsl", "label": "Local WSL only (no DevBox)" }
+        ]},
+        { "key": "wsl_distro", "label": "WSL distro", "type": "select", "options": [
+          { "value": "Ubuntu-24.04", "label": "Ubuntu 24.04 (recommended)" },
+          { "value": "Ubuntu-22.04", "label": "Ubuntu 22.04" }
+        ]},
+        { "key": "wsl_memory_gb", "label": "WSL memory (GB)", "type": "number", "min": 4, "max": 64, "step": 1 },
+        { "key": "wsl_processors", "label": "WSL CPU cores", "type": "number", "min": 1, "max": 16, "step": 1 },
+        { "key": "wsl_swap_gb", "label": "WSL swap (GB)", "type": "number", "min": 0, "max": 32, "step": 1 },
+        { "key": "ide", "label": "IDE", "type": "select", "options": [
+          { "value": "cursor", "label": "Cursor" },
+          { "value": "vscode", "label": "VS Code" },
+          { "value": "both", "label": "Both" }
+        ]},
+        { "key": "devbox_setup_path", "label": "DevBox setup path (Windows)", "type": "text", "placeholder": "C:\\src\\devBoxSetup" }
+      ]
+    },
+    {
+      "id": "python",
+      "title": "Python Stack",
+      "description": "pyenv, uv, and Poetry configuration",
+      "fields": [
+        { "key": "python_default", "label": "Default Python version", "type": "select", "options": [
+          { "value": "3.12.8", "label": "3.12.8 (recommended)" },
+          { "value": "3.11.11", "label": "3.11.11 (Databricks LTS)" },
+          { "value": "3.10.16", "label": "3.10.16" }
+        ]},
+        { "key": "python_versions", "label": "Install Python versions", "type": "multiselect", "options": [
+          { "value": "3.12.8", "label": "3.12.8" },
+          { "value": "3.11.11", "label": "3.11.11" },
+          { "value": "3.10.16", "label": "3.10.16" }
+        ]},
+        { "key": "package_manager_default", "label": "Default package manager", "type": "select", "options": [
+          { "value": "uv", "label": "uv (modern)" },
+          { "value": "poetry", "label": "Poetry (enterprise)" },
+          { "value": "per_project", "label": "Ask per project" }
+        ]},
+        { "key": "install_ruff", "label": "Install ruff", "type": "checkbox" },
+        { "key": "install_pytest", "label": "Install pytest", "type": "checkbox" },
+        { "key": "install_pre_commit", "label": "Install pre-commit", "type": "checkbox" }
+      ]
+    },
+    {
+      "id": "databricks",
+      "title": "Databricks",
+      "description": "Workspace and cluster settings",
+      "fields": [
+        { "key": "databricks_host", "label": "Workspace URL", "type": "text", "placeholder": "https://adb-123456789.12.azuredatabricks.net" },
+        { "key": "databricks_auth", "label": "Auth method", "type": "select", "options": [
+          { "value": "cli", "label": "CLI profile (databricks auth login)" },
+          { "value": "token", "label": "Personal access token" }
+        ]},
+        { "key": "databricks_token", "label": "Databricks token", "type": "secret", "showWhen": { "databricks_auth": "token" } },
+        { "key": "databricks_runtime", "label": "Cluster runtime", "type": "select", "options": [
+          { "value": "15.4.x-scala2.12", "label": "15.4 LTS" },
+          { "value": "14.3.x-scala2.12", "label": "14.3 LTS" },
+          { "value": "13.3.x-scala2.12", "label": "13.3 LTS" }
+        ]},
+        { "key": "databricks_connect_version", "label": "databricks-connect version", "type": "text", "placeholder": "15.4.*" },
+        { "key": "uc_catalog_dev", "label": "Unity Catalog (dev)", "type": "text" },
+        { "key": "uc_catalog_prod", "label": "Unity Catalog (prod)", "type": "text" },
+        { "key": "uc_schema", "label": "Schema", "type": "text" },
+        { "key": "node_type_id", "label": "Node type", "type": "text", "placeholder": "Standard_DS3_v2" },
+        { "key": "num_workers", "label": "Worker count", "type": "number", "min": 0, "max": 32 }
+      ]
+    },
+    {
+      "id": "cicd",
+      "title": "CI/CD",
+      "description": "Azure Pipelines configuration",
+      "fields": [
+        { "key": "ci_package_manager", "label": "Pipeline package manager", "type": "select", "options": [
+          { "value": "uv", "label": "uv" },
+          { "value": "poetry", "label": "Poetry" }
+        ]},
+        { "key": "ci_python_versions", "label": "CI Python matrix", "type": "multiselect", "options": [
+          { "value": "3.12", "label": "3.12" },
+          { "value": "3.11", "label": "3.11" },
+          { "value": "3.10", "label": "3.10" }
+        ]},
+        { "key": "deploy_target", "label": "Deploy stage", "type": "select", "options": [
+          { "value": "none", "label": "None (CI only)" },
+          { "value": "databricks", "label": "Upload wheel to Databricks" }
+        ]},
+        { "key": "service_connection_name", "label": "Service connection name", "type": "text", "showWhen": { "deploy_target": "databricks" } },
+        { "key": "bundle_name", "label": "Databricks bundle name", "type": "text" },
+        { "key": "package_name", "label": "Python package name", "type": "text" }
+      ]
+    },
+    {
+      "id": "review",
+      "title": "Review & Generate",
+      "description": "Preview artifacts and run bootstrap",
+      "fields": []
+    }
+  ]
+}

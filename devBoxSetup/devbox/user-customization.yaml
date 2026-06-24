@@ -1,0 +1,49 @@
+# User customization — upload when creating your DevBox.
+# Personal tools and preferences only. Submit to your Dev Center portal.
+#
+# Replace placeholders:
+#   <ORG>     — Azure DevOps organization name
+#   <PROJECT> — Azure DevOps project name
+
+$schema: 1.0
+name: etl-developer-user
+description: Personal developer setup for ETL / Databricks / Azure DevOps work
+
+tasks:
+  - name: install-git
+    description: Ensure Git for Windows with Credential Manager
+    type: winget
+    parameters:
+      package: Git.Git
+
+  - name: install-azure-cli
+    description: Azure CLI for Entra ID SSO authentication
+    type: winget
+    parameters:
+      package: Microsoft.AzureCLI
+
+  - name: install-windows-terminal
+    description: Windows Terminal with WSL profile
+    type: winget
+    parameters:
+      package: Microsoft.WindowsTerminal
+
+  - name: clone-devbox-setup
+    description: Clone bootstrap repository for WSL setup scripts
+    type: git-clone
+    parameters:
+      repositoryUrl: https://dev.azure.com/<ORG>/<PROJECT>/_git/devBoxSetup
+      path: C:\src\devBoxSetup
+
+  - name: run-wsl-bootstrap
+    description: Run WSL bootstrap after Ubuntu is available
+    type: powershell
+    parameters:
+      script: |
+        $setupRoot = "C:\src\devBoxSetup"
+        if (Test-Path $setupRoot) {
+          $wslPath = wsl wslpath -a $setupRoot
+          wsl -d Ubuntu-24.04 bash "$wslPath/wsl/bootstrap.sh"
+        } else {
+          Write-Host "devBoxSetup not cloned yet — run bootstrap manually"
+        }

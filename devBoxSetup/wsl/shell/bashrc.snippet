@@ -1,0 +1,43 @@
+# --- devBoxSetup: managed snippet (do not edit marker lines) ---
+# BEGIN devBoxSetup
+
+export DEVBOX_SETUP_HOME="${DEVBOX_SETUP_HOME:-$HOME/tools/devBoxSetup}"
+
+# pyenv
+export PYENV_ROOT="$HOME/.pyenv"
+[[ -d "$PYENV_ROOT/bin" ]] && export PATH="$PYENV_ROOT/bin:$PATH"
+if command -v pyenv &>/dev/null; then
+  eval "$(pyenv init - bash)"
+  if [[ -d "$PYENV_ROOT/plugins/pyenv-virtualenv" ]]; then
+    eval "$(pyenv virtualenv-init -)"
+  fi
+fi
+
+# uv
+[[ -f "$HOME/.local/bin/env" ]] && . "$HOME/.local/bin/env"
+export PATH="$HOME/.local/bin:$PATH"
+
+# Poetry
+export PATH="$HOME/.local/bin:$PATH"
+
+# fnm (Node.js)
+if command -v fnm &>/dev/null; then
+  eval "$(fnm env --use-on-cd)"
+fi
+
+# Java (Spark / Databricks Connect)
+if [[ -d /usr/lib/jvm/java-17-openjdk-amd64 ]]; then
+  export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+  export PATH="$JAVA_HOME/bin:$PATH"
+fi
+
+# direnv
+if command -v direnv &>/dev/null; then
+  eval "$(direnv hook bash)"
+fi
+
+# Convenience
+export SRC_DIR="$HOME/src"
+alias src='cd "$SRC_DIR"'
+
+# END devBoxSetup

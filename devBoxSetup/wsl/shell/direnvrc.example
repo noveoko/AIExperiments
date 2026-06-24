@@ -1,0 +1,31 @@
+# Copy to ~/.config/direnv/direnvrc or merge into project .envrc files.
+# Global direnvrc applies to all projects.
+
+# Auto-activate pyenv local version when .python-version exists
+use_pyenv() {
+  if [[ -f .python-version ]]; then
+    local version
+    version=$(<.python-version)
+    pyenv shell "$version" 2>/dev/null || true
+  fi
+}
+
+# Detect and hint package manager for the project
+use_python_project() {
+  if [[ -f uv.lock ]]; then
+    export UV_PROJECT_ROOT="$PWD"
+    if [[ -d .venv ]]; then
+      export VIRTUAL_ENV="$PWD/.venv"
+      export PATH="$VIRTUAL_ENV/bin:$PATH"
+    fi
+  elif [[ -f poetry.lock ]]; then
+    if [[ -d .venv ]]; then
+      export VIRTUAL_ENV="$PWD/.venv"
+      export PATH="$VIRTUAL_ENV/bin:$PATH"
+    fi
+  elif [[ -d .venv ]]; then
+    export VIRTUAL_ENV="$PWD/.venv"
+    export PATH="$VIRTUAL_ENV/bin:$PATH"
+  fi
+  use_pyenv
+}

@@ -1,0 +1,80 @@
+# Team customization — submit to platform engineering / IT for dev box pool attachment.
+# System tasks run during provisioning; user tasks run after first sign-in.
+#
+# Docs: https://learn.microsoft.com/en-us/azure/dev-box/how-to-configure-team-customizations
+
+$schema: 1.0
+name: etl-developer-team
+description: Standard ETL developer DevBox configuration
+
+tasks:
+  # --- System tasks (require pool admin / IT) ---
+  - name: enable-wsl
+    description: Enable WSL2 platform feature
+    type: powershell
+    context: system
+    parameters:
+      script: |
+        wsl --install --no-distribution
+        wsl --set-default-version 2
+
+  - name: install-ubuntu
+    description: Install Ubuntu 24.04 WSL distro
+    type: winget
+    context: system
+    parameters:
+      package: Canonical.Ubuntu.2404
+
+  - name: install-openssh-client
+    description: SSH client for Azure Repos and Databricks
+    type: winget
+    context: system
+    parameters:
+      package: Microsoft.OpenSSH.Beta
+
+  # --- User tasks (run after developer sign-in) ---
+  - name: install-git
+    description: Git for Windows with Credential Manager
+    type: winget
+    context: user
+    parameters:
+      package: Git.Git
+
+  - name: install-azure-cli
+    description: Azure CLI for corporate Entra ID auth
+    type: winget
+    context: user
+    parameters:
+      package: Microsoft.AzureCLI
+
+  - name: install-windows-terminal
+    description: Windows Terminal
+    type: winget
+    context: user
+    parameters:
+      package: Microsoft.WindowsTerminal
+
+  - name: install-cursor
+    description: Cursor IDE (or use VS Code if preferred by org)
+    type: winget
+    context: user
+    parameters:
+      package: Cursor.Cursor
+
+  - name: configure-wslconfig
+    description: Apply recommended WSL resource limits
+    type: powershell
+    context: user
+    parameters:
+      script: |
+        $config = @"
+        [wsl2]
+        memory=8GB
+        processors=4
+        swap=4GB
+        localhostForwarding=true
+        "@
+        $path = "$env:USERPROFILE\.wslconfig"
+        if (-not (Test-Path $path)) {
+          Set-Content -Path $path -Value $config
+        }

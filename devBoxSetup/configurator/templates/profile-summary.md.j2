@@ -1,0 +1,49 @@
+# DevBox Setup Profile: {{ profile_name }}
+
+Generated locally by DevBox Setup Configurator. **Not for upload to external services.**
+
+## Identity
+
+| Field | Value |
+|-------|-------|
+| Git name | {{ git_user_name }} |
+| Git email | {{ git_user_email }} |
+| Azure DevOps org | {{ ado_org }} |
+| Azure DevOps project | {{ ado_project }} |
+| Auth method | {{ ado_auth_method }} |
+
+## Host
+
+| Field | Value |
+|-------|-------|
+| Environment | {{ environment }} |
+| WSL distro | {{ wsl_distro }} |
+| WSL memory | {{ wsl_memory_gb }} GB |
+| IDE | {{ ide }} |
+| Setup path | {{ devbox_setup_path }} |
+
+## Python
+
+| Field | Value |
+|-------|-------|
+| Default version | {{ python_default }} |
+| Versions | {{ python_versions | join(', ') }} |
+| Package manager | {{ package_manager_default }} |
+
+## Databricks
+
+| Field | Value |
+|-------|-------|
+| Workspace | {{ databricks_host }} |
+| Runtime | {{ databricks_runtime }} |
+| Catalog (dev) | {{ uc_catalog_dev }} |
+| Catalog (prod) | {{ uc_catalog_prod }} |
+| Schema | {{ uc_schema }} |
+
+## Next steps
+
+1. Review generated files in `~/.config/devbox-setup/generated/{{ profile_name }}/`
+2. Submit `team-customization.yaml` to IT
+3. Upload `user-customization.yaml` when creating your DevBox
+4. Run `az login` and `databricks auth login`
+5. Run bootstrap from the configurator or `bash wsl/bootstrap.sh`

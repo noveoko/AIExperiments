@@ -1,0 +1,70 @@
+# Databricks Asset Bundle skeleton for ETL jobs.
+# Docs: https://docs.databricks.com/dev-tools/bundles/index.html
+#
+# Usage:
+#   databricks bundle validate -t dev
+#   databricks bundle deploy -t dev
+#   databricks bundle run etl_job -t dev
+
+bundle:
+  name: etl_project
+
+variables:
+  catalog:
+    description: Unity Catalog name
+    default: dev_catalog
+  schema:
+    description: Target schema
+    default: etl
+
+artifacts:
+  default:
+    type: whl
+    build: uv build
+    path: .
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://adb-<workspace-id>.azuredatabricks.net
+    variables:
+      catalog: dev_catalog
+      schema: etl
+
+  prod:
+    mode: production
+    workspace:
+      host: https://adb-<workspace-id>.azuredatabricks.net
+    variables:
+      catalog: prod_catalog
+      schema: etl
+
+resources:
+  jobs:
+    etl_job:
+      name: "[${bundle.target}] ETL Pipeline"
+      tasks:
+        - task_key: run_etl
+          job_cluster_key: etl_cluster
+          python_wheel_task:
+            package_name: etl_project
+            entry_point: main
+            named_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+          libraries:
+            - whl: ./dist/*.whl
+
+      job_clusters:
+        - job_cluster_key: etl_cluster
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: "Standard_DS3_v2"
+            num_workers: 2
+            spark_conf:
+              spark.databricks.delta.preview.enabled: "true"
+            custom_tags:
+              project: etl_project
+              environment: ${bundle.target}
