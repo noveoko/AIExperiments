@@ -1,0 +1,17 @@
+---
+pid: 3772
+cwd: "D:\Non App Data\projects\automated_setup"
+command: "gh auth login --hostname github.com --git-protocol https --web 2>&1"
+started_at: 2026-06-24T15:26:53.884Z
+running_for_ms: 5090010  
+---
+gh : 
+At line:1 char:1
++ gh auth login --hostname github.com --git-protocol https --web 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+! First copy your one-time code: FFF7-9A92
+Open this URL to continue in your web browser: https://github.com/login/device
+failed to authenticate via web browser: context deadline exceeded

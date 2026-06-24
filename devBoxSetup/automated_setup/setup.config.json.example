@@ -1,0 +1,40 @@
+{
+  "python": {
+    "version": "3.10.11"
+  },
+  "project": {
+    "name": "my-databricks-project",
+    "directory": "~/dev/my-databricks-project"
+  },
+  "corporate": {
+    "proxy_url": "",
+    "proxy_username": "",
+    "no_proxy": "localhost,127.0.0.1,.your-org.com",
+    "ca_bundle_path": "",
+    "github_mirror": "",
+    "skip_cluster_smoke_test": true
+  },
+  "artifactory": {
+    "source_name": "artifactory",
+    "url": "https://your-org.jfrog.io/artifactory/api/pypi/pypi-local/simple",
+    "username": "your-username",
+    "token_env_var": "ARTIFACTORY_TOKEN",
+    "test_package": "pip"
+  },
+  "databricks": {
+    "host": "https://adb-xxxx.azuredatabricks.net",
+    "profile": "DEFAULT",
+    "auth_method": "oauth",
+    "cluster_runtime": "17.3",
+    "cluster_id": "1234-567890-abcdef"
+  },
+  "vscode": {
+    "extensions": [
+      "databricks.databricks"
+    ]
+  },
+  "wsl": {
+    "distro": "Ubuntu",
+    "run_wsl_setup": true
+  }
+}

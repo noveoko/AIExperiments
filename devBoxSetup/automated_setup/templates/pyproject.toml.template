@@ -1,0 +1,40 @@
+[tool.poetry]
+name = "{{PROJECT_NAME}}"
+version = "0.1.0"
+description = "Databricks development project"
+authors = ["Developer <dev@example.com>"]
+readme = "README.md"
+package-mode = false
+
+[[tool.poetry.source]]
+name = "{{ARTIFACTORY_SOURCE_NAME}}"
+url = "{{ARTIFACTORY_URL}}"
+priority = "primary"
+
+[tool.poetry.dependencies]
+python = "{{PYTHON_VERSION}}"
+databricks-connect = "~{{CLUSTER_RUNTIME}}"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0"
+pytest-mock = "^3.0"
+pytest-xdist = "^3.0"
+ruff = "^0.9"
+black = "^24.0"
+pre-commit = "^4.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.black]
+line-length = 88
+target-version = ["py310"]

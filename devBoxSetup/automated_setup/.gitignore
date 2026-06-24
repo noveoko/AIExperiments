@@ -1,0 +1,6 @@
+setup.config.json
+setup.log
+*.log
+it-whitelist-request.txt
+support-bundle/
+support-bundle.zip
