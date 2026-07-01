@@ -1,0 +1,317 @@
+## 1. SQL Fundamentals & Query Execution Order (22 topics)
+
+1. Write the **logical query processing order** from memory: `FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY`
+2. Explain why you **cannot use a SELECT alias inside WHERE**
+3. Explain why `SELECT *` is problematic in production queries
+4. Describe what happens when a query has both `WHERE` and `HAVING`
+5. Write a query that filters rows **before** aggregation using `WHERE`
+6. Write a query that filters groups **after** aggregation using `HAVING`
+7. Explain the difference between `COUNT(*)`, `COUNT(column)`, and `COUNT(DISTINCT column)`
+8. Use `COALESCE` and `NULLIF` correctly in expressions
+9. Handle `NULL` comparisons properly (`IS NULL` vs `= NULL`)
+10. Write queries using `IN`, `NOT IN`, `EXISTS`, `NOT EXISTS`
+11. Explain when to use `EXISTS` vs `IN` for performance
+12. Use `CASE WHEN` for conditional logic in `SELECT` and `ORDER BY`
+13. Write a query with multiple `CASE` expressions
+14. Understand `DISTINCT` vs `GROUP BY` trade-offs
+15. Use `LIMIT` / `FETCH FIRST` correctly with `ORDER BY`
+16. Explain the difference between `UNION`, `UNION ALL`, `INTERSECT`, `EXCEPT`
+17. Write a query that finds duplicate rows using `GROUP BY` + `HAVING COUNT(*) > 1`
+18. Remove duplicates while keeping one row (using `ROW_NUMBER()` or `DISTINCT`)
+19. Understand how `ORDER BY` interacts with `LIMIT`
+20. Write a query using `TOP` / `LIMIT` with ties handling
+21. **[High]** Explain the full logical execution order out loud without notes
+22. Practice rewriting a poorly written query to follow best practices
+
+---
+
+## 2. JOINs & Set Operations (20 topics)
+
+23. Explain **INNER JOIN** semantics with unmatched rows
+24. Explain **LEFT JOIN** semantics and what happens to unmatched rows on the right
+25. Explain **RIGHT JOIN** and when you would actually use it
+26. Explain **FULL OUTER JOIN** and its use cases
+27. Write a **self-join** to find each employee’s manager from the same `employees` table
+28. Write a query to find records in Table A that have **no match** in Table B (anti-join pattern)
+29. Implement anti-join using `LEFT JOIN ... WHERE right_table.id IS NULL`
+30. Implement the same anti-join using `NOT EXISTS`
+31. Compare performance of `NOT IN` vs `NOT EXISTS` vs anti-join
+32. Write a query that finds records that exist in **both** tables (semi-join)
+33. Use `CROSS JOIN` intentionally (e.g., generating date ranges)
+34. Understand Cartesian product risk and how to avoid it
+35. Join more than two tables in a single query (3+ tables)
+36. Use table aliases consistently and correctly
+37. Join a table to itself multiple times (different roles)
+38. Write a query using `NATURAL JOIN` and explain why it is dangerous
+39. Convert a subquery into an equivalent `JOIN`
+40. Convert a `JOIN` into an equivalent subquery
+41. **[High]** Explain the difference between all four JOIN types with a small example from memory
+42. Practice the “find employees who have never made a sale” pattern
+
+---
+
+## 3. Aggregation, GROUP BY & HAVING (18 topics)
+
+43. State the rule: every non-aggregated column in `SELECT` must appear in `GROUP BY`
+44. Write a query for **total revenue per category**
+45. Write a query for **average order value per customer**
+46. Write a query for **count of users per signup month**
+47. Combine `JOIN + GROUP BY + HAVING` in one query
+48. Filter groups with `HAVING COUNT(*) > 5`
+49. Use aggregate functions inside `CASE` expressions
+50. Use `GROUPING SETS`, `ROLLUP`, `CUBE` (advanced)
+51. Write a query with multiple aggregate functions in one `SELECT`
+52. Calculate **percentage of total** using a window or subquery
+53. Calculate **running total** within a group (see Window Functions)
+54. Handle `NULL` values in `GROUP BY` correctly
+55. Use `STRING_AGG` / `LISTAGG` / `GROUP_CONCAT` for string aggregation
+56. Write a query that finds the **top category per region** using aggregation + window
+57. Explain when `GROUP BY` is unnecessary
+58. Optimize a slow aggregation query on a large table
+59. **[High]** Given a query with `SELECT`, `JOIN`, `WHERE`, `GROUP BY`, `HAVING` — identify which clause runs first
+60. Practice 5 different “per group” aggregation patterns from memory
+
+---
+
+## 4. Subqueries & CTEs (16 topics)
+
+61. Write a **scalar subquery** that returns a single value
+62. Write a **correlated subquery** and explain how it executes
+63. Rewrite a correlated subquery as a `JOIN` (when possible)
+64. Use a subquery in the `FROM` clause (derived table)
+65. Use a subquery in the `SELECT` clause
+66. Write the classic “find the second highest salary” using a subquery
+67. Write the same query using `DENSE_RANK()` (window function)
+68. Create a **CTE** with `WITH name AS (...)`
+69. Use multiple CTEs in one query (`WITH cte1 AS (...), cte2 AS (...)`)
+70. Rewrite a nested subquery as a CTE for readability
+71. Use a CTE to break down a complex multi-step transformation
+72. Explain why Netflix prefers CTEs over deeply nested subqueries
+73. Use a CTE for recursive queries (if supported)
+74. Materialize a CTE vs let the optimizer decide
+75. **[High]** Convert any nested subquery you wrote into an equivalent CTE
+76. Practice writing a 3-CTE query that solves a realistic analytics problem
+
+---
+
+## 5. Window Functions (28 topics) — Highest Priority Area
+
+77. Write the basic window function syntax skeleton from memory
+78. Explain the difference between `PARTITION BY` and `GROUP BY`
+79. Use `ROW_NUMBER() OVER (PARTITION BY ... ORDER BY ...)`
+80. Use `RANK() OVER (...)` and understand tie behavior + skipping
+81. Use `DENSE_RANK() OVER (...)` and understand no skipping
+82. **[High]** Given sample data, manually compute `ROW_NUMBER`, `RANK`, and `DENSE_RANK`
+83. Write a query to find the **top 3 highest-paid employees per department**
+84. Write a query to find the **most recent order per customer**
+85. Use `ROW_NUMBER() = 1` pattern to deduplicate
+86. Use `LAG(column) OVER (ORDER BY date)` to get previous row value
+87. Use `LEAD(column) OVER (...)` to get next row value
+88. Calculate **day-over-day change** using `LAG`
+89. Calculate **month-over-month revenue change**
+90. Create a **running total** with `SUM() OVER (ORDER BY date)`
+91. Create a running total **per category** using `PARTITION BY`
+92. Use `FIRST_VALUE()` and `LAST_VALUE()`
+93. Use `NTH_VALUE()`
+94. Define a **frame clause** (`ROWS BETWEEN ... AND ...`)
+95. Use `ROWS UNBOUNDED PRECEDING` for running totals
+96. Use `RANGE BETWEEN` vs `ROWS BETWEEN`
+97. Calculate **moving average** over last 7 days
+98. Calculate **percent of total within partition**
+99. Use window functions inside a CTE
+100. Combine window functions with `JOIN` and `GROUP BY` in one query
+101. Optimize a window function query on a billion-row table
+102. Explain why window functions are often faster than self-joins or correlated subqueries
+103. Write a query using 3 different window functions in one `SELECT`
+104. **[High]** Explain `PARTITION BY` vs `ORDER BY` in a window function to a non-technical person
+
+---
+
+## 6. Query Optimization & Performance (18 topics)
+
+105. Explain how **indexes** speed up lookups (conceptually)
+106. Explain the cost of indexes on writes and storage
+107. Describe when a query would benefit from an index on `(user_id, created_at)`
+108. Explain why `SELECT *` hurts performance
+109. Filter as early as possible (`WHERE` before `JOIN` when semantically correct)
+110. Understand **query plans** / `EXPLAIN` output at a high level
+111. Identify full table scans vs index seeks conceptually
+112. Use `EXPLAIN ANALYZE` (or equivalent) on a slow query
+113. Rewrite a query to reduce data shuffled between stages
+114. Understand **partition pruning** benefits
+115. Use appropriate data types to reduce storage and improve performance
+116. Avoid functions on indexed columns in `WHERE` (`WHERE DATE(created_at) = ...`)
+117. Use `EXISTS` instead of `COUNT(*)` when you only need existence
+118. Denormalize strategically for read performance (star schema)
+119. Understand the impact of `ORDER BY` on large result sets
+120. Use pagination with keyset pagination instead of `OFFSET` for deep pages
+121. **[High]** Given a slow query on a 500M row table, list 5 concrete optimization ideas
+122. Practice explaining query performance trade-offs out loud
+
+---
+
+## 7. Native Python Fundamentals (No Pandas) (25 topics)
+
+123. Reverse a string in-place or with slicing
+124. Check if a string is a **palindrome** (two-pointer or slicing)
+125. Find all **duplicates** in a list using a `set`
+126. Count frequency of elements in a list using a manual `dict` loop
+127. Count frequency using `collections.Counter`
+128. Explain why you should know both manual loop and `Counter`
+129. Find the **most frequent element** in a list
+130. Find the **k most frequent** elements
+131. Implement `defaultdict` behavior manually
+132. Use `set` for O(1) membership tests
+133. Implement `intersection`, `union`, `difference` of two sets
+134. Remove duplicates from a list while preserving order
+135. Flatten a nested list (recursive or iterative)
+136. Check if parentheses in a string are balanced using a **stack**
+137. Implement a basic **stack** and **queue** from scratch
+138. Use `collections.deque` for efficient queue/stack
+139. Implement **linear search** and state its Big-O
+140. Implement **binary search** on a sorted list and state its Big-O (`O(log n)`)
+141. Write a function that returns all pairs that sum to a target (two-pointer on sorted array)
+142. Implement **sliding window** maximum / sum
+143. Write a function to find the longest substring without repeating characters
+144. Use `sorted()` with `key=` and `lambda`
+145. Implement **insertion sort** or **bubble sort** from scratch
+146. Explain **Timsort** (Python’s `sorted`) advantages
+147. Use list comprehensions and dict comprehensions for concise code
+148. Rewrite a loop-based solution as a one-line comprehension
+149. **[High]** Implement `word_count` both manually and with `Counter` from memory
+
+---
+
+## 8. Python Data Engineering Patterns (22 topics)
+
+150. Parse a list of log lines into `user_id → list of timestamps`
+151. Group a list of dicts by a key (manual or `defaultdict`)
+152. Merge two lists of dicts on a common key (like a join)
+153. Find the difference between two lists of dicts
+154. Implement a simple **LRU cache** using `OrderedDict` or `functools.lru_cache`
+155. Handle large files line-by-line without loading everything into memory
+156. Use generators (`yield`) for memory-efficient processing
+157. Write a generator that yields batches of records
+158. Implement retry logic with exponential backoff
+159. Validate JSON-like nested structures
+160. Flatten deeply nested JSON into a list of records
+161. Convert a list of records into a star-schema friendly format
+162. Write an idempotent data transformation function
+163. Handle schema evolution in a transformation
+164. Write unit tests for a data transformation function
+165. Mock external API calls in tests
+166. Use `typing` for better code clarity (List, Dict, Optional, etc.)
+167. Write a function with clear docstring and type hints
+168. Profile a Python function’s runtime and memory (conceptually)
+169. **[High]** Given a messy list of event dicts, clean and aggregate it using only native Python
+
+---
+
+## 9. Data Modeling Fundamentals (20 topics)
+
+170. Define a **fact table** and give 3 real-world examples
+171. Define a **dimension table** and give 3 real-world examples
+172. Explain the difference between **fact** and **dimension** tables
+173. Design a **star schema** for Netflix viewing history (`viewing_events` fact + `dim_user`, `dim_content`, `dim_date`)
+174. Design a star schema for an e-commerce orders system
+175. Design a star schema for a ride-sharing / food-delivery platform
+176. Choose the **grain** of a fact table correctly
+177. Decide which attributes belong in a dimension vs fact
+178. Use **surrogate keys** vs natural keys in dimensions
+179. Explain the benefits of surrogate keys
+180. Model **hierarchical dimensions** (e.g., product category → subcategory)
+181. Model **multi-valued dimensions** (e.g., a movie belonging to multiple genres)
+182. Create a **date dimension** with useful attributes (year, quarter, month, week, is_weekend, etc.)
+183. Explain **conformed dimensions** across multiple fact tables
+184. Design a schema that supports both current and historical analysis
+185. Draw a star schema on paper/Excalidraw from a new business scenario
+186. **[High]** Redraw the Netflix viewing history star schema from memory with at least 3 dimensions
+
+---
+
+## 10. Slowly Changing Dimensions (SCDs) (16 topics)
+
+187. Explain **Type 1 SCD** (overwrite) and when it is acceptable
+188. Explain **Type 2 SCD** (add new row + effective dates) — most common in analytics
+189. Explain **Type 3 SCD** (add previous value column) and its limitations
+190. Design the columns needed for a Type 2 dimension (`surrogate_key`, `natural_key`, `effective_from`, `effective_to`, `is_current`)
+191. Write a query to find the version of a dimension that was active on a specific date
+192. Implement Type 2 logic conceptually for `dim_content` (genre changes over time)
+193. Explain why Type 2 is preferred for trend analysis and auditability at Netflix
+194. Handle **Type 2 + late-arriving facts**
+195. Merge Type 2 dimensions efficiently (upsert patterns)
+196. Query a Type 2 dimension for “what was the genre of this title in March 2025?”
+197. Compare storage and query complexity of Type 1 vs Type 2
+198. **[High]** Given a changing attribute, decide between Type 1 and Type 2 and justify your choice out loud
+199. Practice explaining SCD Type 2 to a product manager
+
+---
+
+## 11. Data Warehousing & Analytics Concepts (15 topics)
+
+200. Explain **star schema** vs **snowflake schema** trade-offs
+201. Explain **normalized** (3NF) vs **denormalized** schemas and when each is appropriate
+202. Describe the purpose of a **data warehouse** vs **data lake**
+203. Explain **ELT** vs **ETL** and why modern stacks favor ELT
+204. Understand **idempotency** in data pipelines
+205. Design an idempotent pipeline step
+206. Explain **partitioning** strategies (date, user_id, etc.)
+207. Explain **clustering** / sorting keys benefits
+208. Understand **materialized views** and when to use them
+209. Explain **incremental** vs **full refresh** strategies
+210. Design a pipeline that handles late-arriving data
+211. Understand the concept of **data quality** checks (row counts, null %, uniqueness)
+212. Write a simple data quality validation query
+213. Explain the role of **dbt** (or equivalent) in modern analytics engineering
+214. **[High]** Design a minimal analytics schema for a new product feature from scratch
+
+---
+
+## 12. Data Structures, Algorithms & Complexity for DE (18 topics)
+
+215. State Big-O of **list lookup** by index vs by value
+216. State Big-O of **dict lookup** (average case `O(1)`) and why (hash table)
+217. State Big-O of **list append** (amortized `O(1)`)
+218. State Big-O of **sorted()** / Timsort (`O(n log n)`)
+219. Explain **space complexity** vs time complexity with examples
+220. Analyze time/space complexity of your two-pointer solution
+221. Analyze time/space complexity of your sliding window solution
+222. Analyze complexity of a recursive flatten function
+223. Choose the right data structure for a frequency counting problem
+224. Choose the right data structure for a “most recent N items” problem
+225. Use a **heap** (conceptually) for top-k problems
+226. Explain when a **set** is better than a **list**
+227. Explain when a **dict** is better than a **list of tuples**
+228. Implement a basic **hash table** concept (buckets + hashing)
+229. **[High]** After solving any coding problem, state its time and space complexity out loud without prompting
+
+---
+
+## 13. Netflix Culture, Behavioral & Soft Skills (12 topics)
+
+230. Summarize the core principles from the **Netflix Culture Memo** (Freedom & Responsibility, Context not Control, etc.)
+231. Give one concrete example of how “Freedom and Responsibility” would affect how you own a data pipeline
+232. Prepare 2–3 thoughtful questions about how the Data Engineering team operates day-to-day
+233. Prepare an example of a time you made a decision with incomplete information
+234. Prepare a story about handling a production data incident
+235. Prepare an example of simplifying a complex technical topic for stakeholders
+236. Practice the **STAR** method for behavioral answers
+237. Practice answering “Why Netflix?” with specific, genuine reasons
+238. Practice explaining a technical trade-off you made and why
+239. Prepare questions about on-call, incident response, and data quality ownership
+240. **[High]** Be ready to discuss one project from your background in depth (technical decisions + business impact)
+
+---
+
+## 14. Interview Meta-Skills & Communication (10 topics)
+
+241. Think out loud while solving a problem (even if stuck)
+242. Ask clarifying questions before jumping into code or schema design
+243. State assumptions explicitly
+244. Draw diagrams (star schema, data flow) while explaining
+245. Handle follow-up “why” questions gracefully
+246. Admit when you don’t know something and describe how you would find out
+247. Summarize your solution and trade-offs at the end of a problem
+248. Practice a 60-minute mock interview format (modeling + SQL + Python + deep dive)
+249. Record yourself solving a problem and review your communication
+250. **[High]** After every practice session, identify the one thing you would improve next time
