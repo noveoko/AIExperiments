@@ -1,0 +1,18 @@
+[project]
+name = "ocr-3"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.3",
+    "opencv-python-headless>=5.0.0.93",
+    "pandas>=3.0.6",
+    "pillow>=12.3.0",
+    "scikit-image>=0.26.0",
+    "scikit-learn>=1.9.1",
+    "streamlit>=1.65.0",
+    "streamlit-cropper>=0.3.0",
+    "torch>=2.14.1",
+]

@@ -1,0 +1,11 @@
+streamlit
+streamlit-cropper>=0.3.0
+opencv-python-headless
+numpy
+pandas
+pillow
+matplotlib
+scikit-learn
+scikit-image
+scipy
+torch
